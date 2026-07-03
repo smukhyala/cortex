@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Source {
+  id           String    @id @default(cuid())
+  type         String    // chatgpt_export | claude_code | claude_export | poke
+  name         String
+  status       String    @default("active") // active | error
+  config       String    @default("{}") // JSON: paths, settings
+  lastSyncAt   DateTime?
+  lastFileHash String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  conversations Conversation[]
+  memories      Memory[]
+  syncRuns      SyncRun[]
+}
+
+model Conversation {
+  id           String    @id @default(cuid())
+  externalId   String
+  sourceId     String
+  source       Source    @relation(fields: [sourceId], references: [id])
+  title        String?
+  messageCount Int       @default(0)
+  contentHash  String
+  createdAt    DateTime  @default(now())
+  sourceDate   DateTime?
+
+  memories Memory[]
+
+  @@unique([sourceId, externalId])
+  @@index([contentHash])
+}
+
+model Memory {
+  id             String    @id @default(cuid())
+  content        String
+  subject        String    @default("user")
+  category       String
+  confidence     Float
+  verbatimQuote  String?
+  temporality    String    @default("durable") // durable | current | expired
+  sensitive      Boolean   @default(false)
+
+  sourceId       String
+  source         Source    @relation(fields: [sourceId], references: [id])
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id])
+
+  status         String    @default("pending") // pending | active | rejected | archived
+  approvedAt     DateTime?
+  archivedAt     DateTime?
+  archivedReason String?
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  reviewItems    ReviewItem[]
+  conflictsAsNew Conflict[] @relation("ConflictNew")
+  conflictsAsOld Conflict[] @relation("ConflictExisting")
+
+  @@index([category])
+  @@index([status])
+  @@index([sourceId])
+}
+
+model Conflict {
+  id               String    @id @default(cuid())
+  newMemoryId      String
+  newMemory        Memory    @relation("ConflictNew", fields: [newMemoryId], references: [id])
+  existingMemoryId String
+  existingMemory   Memory    @relation("ConflictExisting", fields: [existingMemoryId], references: [id])
+  type             String    // contradiction | duplicate | refinement | supersede
+  reasoning        String
+  suggestedAction  String    // keep_new | keep_existing | merge | keep_both
+  mergedContent    String?
+  status           String    @default("pending") // pending | resolved | dismissed
+  resolvedAt       DateTime?
+  createdAt        DateTime  @default(now())
+
+  reviewItem ReviewItem?
+}
+
+model ReviewItem {
+  id         String    @id @default(cuid())
+  memoryId   String
+  memory     Memory    @relation(fields: [memoryId], references: [id])
+  conflictId String?   @unique
+  conflict   Conflict? @relation(fields: [conflictId], references: [id])
+  type       String    // new_memory | conflict
+  title      String
+  status     String    @default("pending") // pending | approved | rejected
+  resolvedAt DateTime?
+  note       String?
+  createdAt  DateTime  @default(now())
+
+  @@index([status])
+}
+
+model SyncRun {
+  id                  String    @id @default(cuid())
+  sourceId            String
+  source              Source    @relation(fields: [sourceId], references: [id])
+  trigger             String    // manual | upload | fs_watch
+  status              String    @default("running") // running | completed | failed
+  conversationsParsed Int       @default(0)
+  memoriesExtracted   Int       @default(0)
+  conflictsFound      Int       @default(0)
+  reviewItemsCreated  Int       @default(0)
+  tokensUsed          Int       @default(0)
+  errorMessage        String?
+  durationMs          Int?
+  startedAt           DateTime  @default(now())
+  completedAt         DateTime?
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  action    String
+  summary   String
+  details   String   @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

@@ -1,0 +1,167 @@
+[
+  {
+    "title": "TypeScript project setup",
+    "create_time": 1719500000.0,
+    "update_time": 1719500600.0,
+    "conversation_id": "conv-abc-123",
+    "current_node": "msg-5",
+    "mapping": {
+      "root": {
+        "id": "root",
+        "message": null,
+        "parent": null,
+        "children": ["msg-1"]
+      },
+      "msg-1": {
+        "id": "msg-1",
+        "message": {
+          "id": "msg-1",
+          "author": { "role": "system", "name": null },
+          "create_time": null,
+          "content": { "content_type": "text", "parts": [""] },
+          "status": "finished_successfully"
+        },
+        "parent": "root",
+        "children": ["msg-2"]
+      },
+      "msg-2": {
+        "id": "msg-2",
+        "message": {
+          "id": "msg-2",
+          "author": { "role": "user", "name": null },
+          "create_time": 1719500010.0,
+          "content": { "content_type": "text", "parts": ["I'm building a project called Cortex. It's a memory sync tool for AI assistants. I prefer TypeScript and Next.js for this kind of project."] },
+          "status": "finished_successfully"
+        },
+        "parent": "msg-1",
+        "children": ["msg-3"]
+      },
+      "msg-3": {
+        "id": "msg-3",
+        "message": {
+          "id": "msg-3",
+          "author": { "role": "assistant", "name": null },
+          "create_time": 1719500020.0,
+          "content": { "content_type": "text", "parts": ["That sounds like a great project! TypeScript and Next.js are excellent choices for this."] },
+          "status": "finished_successfully"
+        },
+        "parent": "msg-2",
+        "children": ["msg-4", "msg-4-branch"]
+      },
+      "msg-4": {
+        "id": "msg-4",
+        "message": {
+          "id": "msg-4",
+          "author": { "role": "user", "name": null },
+          "create_time": 1719500030.0,
+          "content": { "content_type": "text", "parts": ["I'm based in San Francisco and I studied CS at Stanford. Can you help me design the database schema?"] },
+          "status": "finished_successfully"
+        },
+        "parent": "msg-3",
+        "children": ["msg-5"]
+      },
+      "msg-4-branch": {
+        "id": "msg-4-branch",
+        "message": {
+          "id": "msg-4-branch",
+          "author": { "role": "user", "name": null },
+          "create_time": 1719500035.0,
+          "content": { "content_type": "text", "parts": ["This is a branched message that should NOT appear in the flattened output."] },
+          "status": "finished_successfully"
+        },
+        "parent": "msg-3",
+        "children": []
+      },
+      "msg-5": {
+        "id": "msg-5",
+        "message": {
+          "id": "msg-5",
+          "author": { "role": "assistant", "name": null },
+          "create_time": 1719500040.0,
+          "content": { "content_type": "text", "parts": ["Sure! Let me help you design a schema using Prisma with SQLite."] },
+          "status": "finished_successfully"
+        },
+        "parent": "msg-4",
+        "children": []
+      }
+    }
+  },
+  {
+    "title": "Multipart content test",
+    "create_time": 1719600000.0,
+    "update_time": 1719600300.0,
+    "conversation_id": "conv-def-456",
+    "current_node": "msg-b3",
+    "mapping": {
+      "root-b": {
+        "id": "root-b",
+        "message": null,
+        "parent": null,
+        "children": ["msg-b1"]
+      },
+      "msg-b1": {
+        "id": "msg-b1",
+        "message": {
+          "id": "msg-b1",
+          "author": { "role": "user", "name": null },
+          "create_time": 1719600010.0,
+          "content": { "content_type": "text", "parts": ["My name is Sanjay and I work as a founder. Here's some code:", null, "console.log('hello')"] },
+          "status": "finished_successfully"
+        },
+        "parent": "root-b",
+        "children": ["msg-b2"]
+      },
+      "msg-b2": {
+        "id": "msg-b2",
+        "message": {
+          "id": "msg-b2",
+          "author": { "role": "assistant", "name": null },
+          "create_time": 1719600020.0,
+          "content": { "content_type": "text", "parts": ["Nice to meet you Sanjay!"] },
+          "status": "finished_successfully"
+        },
+        "parent": "msg-b1",
+        "children": ["msg-b3"]
+      },
+      "msg-b3": {
+        "id": "msg-b3",
+        "message": {
+          "id": "msg-b3",
+          "author": { "role": "user", "name": null },
+          "create_time": 1719600030.0,
+          "content": { "content_type": "text", "parts": ["Actually, I recently moved from New York to San Francisco."] },
+          "status": "finished_successfully"
+        },
+        "parent": "msg-b2",
+        "children": []
+      }
+    }
+  },
+  {
+    "title": "Empty conversation",
+    "create_time": 1719700000.0,
+    "update_time": 1719700000.0,
+    "conversation_id": "conv-ghi-789",
+    "current_node": "msg-c1",
+    "mapping": {
+      "root-c": {
+        "id": "root-c",
+        "message": null,
+        "parent": null,
+        "children": ["msg-c1"]
+      },
+      "msg-c1": {
+        "id": "msg-c1",
+        "message": {
+          "id": "msg-c1",
+          "author": { "role": "system", "name": null },
+          "create_time": null,
+          "content": { "content_type": "text", "parts": [""] },
+          "status": "finished_successfully"
+        },
+        "parent": "root-c",
+        "children": []
+      }
+    }
+  }
+]

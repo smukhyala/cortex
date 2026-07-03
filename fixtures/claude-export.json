@@ -1,0 +1,60 @@
+[
+  {
+    "uuid": "conv-claude-001",
+    "name": "Project architecture discussion",
+    "created_at": "2026-06-15T10:00:00Z",
+    "updated_at": "2026-06-15T10:30:00Z",
+    "chat_messages": [
+      {
+        "uuid": "msg-c001",
+        "text": "I'm working on Cortex, a tool that syncs my AI memories across ChatGPT, Claude, and Poke. I'm a founder based in San Francisco.",
+        "sender": "human",
+        "created_at": "2026-06-15T10:00:00Z",
+        "updated_at": "2026-06-15T10:00:00Z"
+      },
+      {
+        "uuid": "msg-c002",
+        "text": "That's an interesting project! Let me help you think through the architecture.",
+        "sender": "assistant",
+        "created_at": "2026-06-15T10:01:00Z",
+        "updated_at": "2026-06-15T10:01:00Z"
+      },
+      {
+        "uuid": "msg-c003",
+        "text": "I prefer using Zod for all runtime validation. Also, I'm currently researching how MCP servers work for context sharing between AI tools.",
+        "sender": "human",
+        "created_at": "2026-06-15T10:05:00Z",
+        "updated_at": "2026-06-15T10:05:00Z"
+      },
+      {
+        "uuid": "msg-c004",
+        "text": "Zod is a great choice! MCP is a protocol developed by Anthropic for connecting AI models to external tools and data sources.",
+        "sender": "assistant",
+        "created_at": "2026-06-15T10:06:00Z",
+        "updated_at": "2026-06-15T10:06:00Z"
+      }
+    ]
+  },
+  {
+    "uuid": "conv-claude-002",
+    "name": "Quick question about TypeScript",
+    "created_at": "2026-06-20T14:00:00Z",
+    "updated_at": "2026-06-20T14:05:00Z",
+    "chat_messages": [
+      {
+        "uuid": "msg-c005",
+        "text": "What's the difference between type and interface in TypeScript?",
+        "sender": "human",
+        "created_at": "2026-06-20T14:00:00Z",
+        "updated_at": "2026-06-20T14:00:00Z"
+      },
+      {
+        "uuid": "msg-c006",
+        "text": "Great question! Types and interfaces are similar but have key differences...",
+        "sender": "assistant",
+        "created_at": "2026-06-20T14:01:00Z",
+        "updated_at": "2026-06-20T14:01:00Z"
+      }
+    ]
+  }
+]
