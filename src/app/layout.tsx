@@ -5,7 +5,6 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Separator } from "@/components/ui/separator";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,12 +36,16 @@ export default function RootLayout({
           <SidebarProvider>
             <AppSidebar />
             <SidebarInset>
-              <header className="flex h-14 items-center gap-2 border-b px-4">
+              <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/80 backdrop-blur-sm px-6">
                 <SidebarTrigger />
-                <Separator orientation="vertical" className="h-6" />
-                <h2 className="text-sm font-medium text-muted-foreground">Cortex</h2>
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-6 rounded-md bg-lime flex items-center justify-center">
+                    <span className="text-[10px] font-bold text-lime-foreground">C</span>
+                  </div>
+                  <span className="text-sm font-semibold tracking-tight">Cortex</span>
+                </div>
               </header>
-              <main className="flex-1 p-6">{children}</main>
+              <main className="flex-1 px-6 py-8 max-w-6xl">{children}</main>
             </SidebarInset>
           </SidebarProvider>
           <Toaster />

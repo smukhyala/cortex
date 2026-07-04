@@ -51,7 +51,7 @@ export async function structuredCall<T>(params: {
   });
 
   const response = await anthropic.messages.create({
-    model: params.model ?? "claude-sonnet-4-20250514",
+    model: params.model ?? "claude-sonnet-4-6",
     max_tokens: params.maxTokens ?? 4096,
     temperature: params.temperature ?? 0,
     system: params.system,
@@ -98,7 +98,7 @@ export async function textCall(params: {
   const anthropic = getClient();
 
   const response = await anthropic.messages.create({
-    model: params.model ?? "claude-sonnet-4-20250514",
+    model: params.model ?? "claude-sonnet-4-6",
     max_tokens: params.maxTokens ?? 2048,
     temperature: params.temperature ?? 0,
     system: params.system,

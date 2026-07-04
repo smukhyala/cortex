@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Brain,
   Inbox,
   Settings,
+  Zap,
 } from "lucide-react";
 import {
   Sidebar,
@@ -28,25 +30,37 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-export function AppSidebar({ pendingCount }: { pendingCount?: number }) {
+export function AppSidebar() {
   const pathname = usePathname();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/review")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setPendingCount(data.length);
+      })
+      .catch(() => {});
+  }, [pathname]);
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-4">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
-            C
+      <SidebarHeader className="p-5 pb-4">
+        <Link href="/" className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-lime">
+            <Zap className="h-4 w-4 text-lime-foreground" />
           </div>
           <div>
-            <h1 className="text-sm font-semibold">Cortex</h1>
-            <p className="text-xs text-muted-foreground">Memory Sync</p>
+            <h1 className="text-sm font-bold tracking-tight">Cortex</h1>
+            <p className="text-[11px] text-muted-foreground">AI Memory Sync</p>
           </div>
         </Link>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/60 px-3">
+            Navigation
+          </SidebarGroupLabel>
           <SidebarMenu>
             {NAV_ITEMS.map((item) => {
               const isActive =
@@ -60,12 +74,9 @@ export function AppSidebar({ pendingCount }: { pendingCount?: number }) {
                     render={<Link href={item.href} />}
                   >
                     <item.icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                    {item.showBadge && pendingCount && pendingCount > 0 ? (
-                      <Badge
-                        variant="destructive"
-                        className="ml-auto h-5 min-w-5 px-1 text-xs"
-                      >
+                    <span className="text-[13px]">{item.label}</span>
+                    {item.showBadge && pendingCount > 0 ? (
+                      <Badge className="ml-auto h-5 min-w-5 px-1.5 text-[10px] font-semibold bg-lime text-lime-foreground border-0">
                         {pendingCount}
                       </Badge>
                     ) : null}
@@ -76,10 +87,11 @@ export function AppSidebar({ pendingCount }: { pendingCount?: number }) {
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-4">
-        <p className="text-xs text-muted-foreground">
-          Personal AI Memory Layer
-        </p>
+      <SidebarFooter className="p-5 pt-3">
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <div className="h-1.5 w-1.5 rounded-full bg-lime animate-pulse" />
+          <span>System active</span>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );

@@ -40,7 +40,6 @@ export function FileUpload({
       const formData = new FormData();
       formData.append("file", file);
 
-      // Detect source type
       const name = file.name.toLowerCase();
       let sourceType = "chatgpt_export";
       if (name.includes("claude")) {
@@ -117,41 +116,45 @@ export function FileUpload({
   return (
     <Card
       className={cn(
-        "transition-colors",
-        state === "dragging" && "border-primary bg-primary/5",
-        state === "error" && "border-red-300",
-        state === "success" && "border-green-300",
+        "transition-all duration-200 border-dashed",
+        state === "dragging" && "border-lime bg-lime-muted shadow-sm",
+        state === "error" && "border-destructive/40",
+        state === "success" && "border-lime/40",
         className
       )}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
     >
-      <CardContent className="flex flex-col items-center justify-center py-8 px-4 text-center">
+      <CardContent className="flex flex-col items-center justify-center py-10 px-4 text-center">
         {state === "idle" || state === "dragging" ? (
           <>
-            <Upload
-              className={cn(
-                "h-10 w-10 mb-3",
-                state === "dragging"
-                  ? "text-primary"
-                  : "text-muted-foreground"
-              )}
-            />
+            <div className={cn(
+              "flex h-12 w-12 items-center justify-center rounded-xl mb-4 transition-colors",
+              state === "dragging" ? "bg-lime/20" : "bg-muted"
+            )}>
+              <Upload
+                className={cn(
+                  "h-5 w-5",
+                  state === "dragging" ? "text-lime-foreground" : "text-muted-foreground"
+                )}
+              />
+            </div>
             <p className="text-sm font-medium">
               {state === "dragging"
                 ? "Drop your file here"
                 : "Drag & drop a conversation export"}
             </p>
-            <p className="text-xs text-muted-foreground mt-1 mb-3">
+            <p className="text-xs text-muted-foreground mt-1 mb-4">
               ChatGPT (.zip or .json) or Claude (.json)
             </p>
             <Button
               variant="outline"
               size="sm"
+              className="h-8 text-xs"
               onClick={() => inputRef.current?.click()}
             >
-              <FileText className="h-4 w-4 mr-1" />
+              <FileText className="h-3.5 w-3.5 mr-1.5" />
               Browse Files
             </Button>
             <input
@@ -164,26 +167,32 @@ export function FileUpload({
           </>
         ) : state === "uploading" ? (
           <>
-            <Loader2 className="h-10 w-10 text-primary animate-spin mb-3" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-lime/15 mb-4">
+              <Loader2 className="h-5 w-5 text-lime-foreground animate-spin" />
+            </div>
             <p className="text-sm font-medium">{fileName}</p>
             <p className="text-xs text-muted-foreground mt-1">{message}</p>
-            <Progress value={null} className="w-48 mt-3" />
+            <Progress value={null} className="w-48 mt-4" />
           </>
         ) : state === "success" ? (
           <>
-            <CheckCircle className="h-10 w-10 text-green-500 mb-3" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-lime/15 mb-4">
+              <CheckCircle className="h-5 w-5 text-lime-foreground" />
+            </div>
             <p className="text-sm font-medium">{fileName}</p>
             <p className="text-xs text-muted-foreground mt-1">{message}</p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={reset}>
+            <Button variant="outline" size="sm" className="mt-4 h-8 text-xs" onClick={reset}>
               Upload Another
             </Button>
           </>
         ) : (
           <>
-            <XCircle className="h-10 w-10 text-red-500 mb-3" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10 mb-4">
+              <XCircle className="h-5 w-5 text-destructive" />
+            </div>
             <p className="text-sm font-medium">Upload Failed</p>
-            <p className="text-xs text-red-600 mt-1">{message}</p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={reset}>
+            <p className="text-xs text-destructive mt-1">{message}</p>
+            <Button variant="outline" size="sm" className="mt-4 h-8 text-xs" onClick={reset}>
               Try Again
             </Button>
           </>

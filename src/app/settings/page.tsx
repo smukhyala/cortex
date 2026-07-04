@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Trash2, FolderOpen } from "lucide-react";
+import { Plus, Trash2, FolderOpen, CheckCircle, XCircle, Zap, Server } from "lucide-react";
 
 interface Source {
   id: string;
@@ -38,13 +38,20 @@ interface Source {
   _count: { memories: number };
 }
 
+interface StatusData {
+  connections: Record<string, { connected: boolean; label: string; description: string }>;
+  stats: { memories: number; pending: number; sources: number; lastSync: string | null };
+}
+
 export default function SettingsPage() {
   const [sources, setSources] = useState<Source[]>([]);
+  const [status, setStatus] = useState<StatusData | null>(null);
   const [addDialog, setAddDialog] = useState(false);
   const [newSource, setNewSource] = useState({ type: "claude_code", name: "", path: "" });
 
   useEffect(() => {
     fetchSources();
+    fetchStatus();
   }, []);
 
   async function fetchSources() {
@@ -54,6 +61,13 @@ export default function SettingsPage() {
     } catch {
       toast.error("Failed to load sources");
     }
+  }
+
+  async function fetchStatus() {
+    try {
+      const res = await fetch("/api/status");
+      setStatus(await res.json());
+    } catch {}
   }
 
   async function handleAddSource() {
@@ -110,9 +124,56 @@ export default function SettingsPage() {
     }
   }
 
+  const connections = status?.connections;
+
   return (
-    <div className="space-y-6 max-w-2xl">
-      <h1 className="text-2xl font-bold">Settings</h1>
+    <div className="space-y-8 max-w-2xl">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+        <p className="text-sm text-muted-foreground mt-1">Manage connections, sources, and preferences.</p>
+      </div>
+
+      {/* Connections */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold tracking-tight">Connections</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {connections && Object.entries(connections).map(([key, conn]) => (
+            <Card key={key} className="relative overflow-hidden">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${conn.connected ? "bg-lime/15" : "bg-muted"}`}>
+                      {key === "anthropic" ? (
+                        <Zap className={`h-4 w-4 ${conn.connected ? "text-lime-foreground" : "text-muted-foreground"}`} />
+                      ) : (
+                        <Server className={`h-4 w-4 ${conn.connected ? "text-lime-foreground" : "text-muted-foreground"}`} />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{conn.label}</p>
+                      <p className="text-xs text-muted-foreground">{conn.description}</p>
+                    </div>
+                  </div>
+                  {conn.connected ? (
+                    <CheckCircle className="h-4 w-4 text-lime-foreground shrink-0" />
+                  ) : (
+                    <XCircle className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+                  )}
+                </div>
+                {conn.connected && (
+                  <div className="mt-3 flex items-center gap-1.5">
+                    <div className="h-1.5 w-1.5 rounded-full bg-lime" />
+                    <span className="text-[11px] text-muted-foreground">Configured via .env</span>
+                  </div>
+                )}
+                {conn.connected && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-lime" />
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
 
       {/* Sources */}
       <Card>
@@ -141,6 +202,7 @@ export default function SettingsPage() {
                     <Button
                       size="sm"
                       variant="outline"
+                      className="h-8 text-xs"
                       onClick={() => handleWriteBack(config.path)}
                       title="Write memories to CLAUDE.md"
                     >
@@ -169,43 +231,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* API Keys */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">API Keys</CardTitle>
-          <CardDescription>
-            Keys are stored in your local .env file. Never transmitted externally.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="anthropic-key">Anthropic API Key</Label>
-            <Input
-              id="anthropic-key"
-              type="password"
-              placeholder="sk-ant-..."
-              defaultValue={process.env.NEXT_PUBLIC_ANTHROPIC_KEY_SET ? "••••••••" : ""}
-              disabled
-            />
-            <p className="text-xs text-muted-foreground">
-              Set via ANTHROPIC_API_KEY in your .env file
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="poke-key">Poke API Key</Label>
-            <Input
-              id="poke-key"
-              type="password"
-              placeholder="pk_..."
-              disabled
-            />
-            <p className="text-xs text-muted-foreground">
-              Set via POKE_API_KEY in your .env file. Get it from Poke Kitchen.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Update Mode */}
       <Card>
         <CardHeader>
@@ -217,8 +242,8 @@ export default function SettingsPage() {
             <div className="flex items-start space-x-3 p-3 rounded-lg border">
               <RadioGroupItem value="review" id="review" className="mt-0.5" />
               <Label htmlFor="review" className="cursor-pointer">
-                <p className="font-medium">Review Queue</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="font-medium text-sm">Review Queue</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
                   All proposed memories require manual approval before being added.
                 </p>
               </Label>
@@ -226,8 +251,8 @@ export default function SettingsPage() {
             <div className="flex items-start space-x-3 p-3 rounded-lg border mt-2">
               <RadioGroupItem value="auto" id="auto" className="mt-0.5" />
               <Label htmlFor="auto" className="cursor-pointer">
-                <p className="font-medium">Auto-Approve</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="font-medium text-sm">Auto-Approve</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Refinements of already-approved memories are auto-merged. New facts and conflicts still require review.
                 </p>
               </Label>
@@ -247,23 +272,20 @@ export default function SettingsPage() {
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
             Cortex exposes an MCP server that AI tools can connect to. When running,
-            Poke and Claude can call <code className="text-xs bg-muted px-1 py-0.5 rounded">cortex_get_memories()</code> to
+            Poke and Claude can call <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">cortex_get_memories()</code> to
             pull your latest context.
           </p>
           <div className="p-3 rounded-lg bg-muted text-sm font-mono">
-            <p className="text-xs text-muted-foreground mb-1">Connection URL:</p>
-            <p>http://localhost:3001/mcp</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Connection</p>
+            <p className="text-xs">stdio transport via <code>npm run mcp</code></p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            In Poke Kitchen: Integrations &rarr; New MCP Server &rarr; paste the URL above.
-          </p>
         </CardContent>
       </Card>
 
       {/* Danger Zone */}
-      <Card className="border-red-200">
+      <Card className="border-destructive/30">
         <CardHeader>
-          <CardTitle className="text-base text-red-600">Danger Zone</CardTitle>
+          <CardTitle className="text-base text-destructive">Danger Zone</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">

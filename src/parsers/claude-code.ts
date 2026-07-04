@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { readFile, writeFile, stat } from "fs/promises";
+import { readFile, writeFile, stat, readdir } from "fs/promises";
 import { join } from "path";
 import type { NormalizedConversation, NormalizedMessage } from "@/contracts/conversation";
 
@@ -117,12 +117,34 @@ export function parseMarkdownSections(content: string): ParsedSection[] {
 export async function parseClaudeCodeMemory(
   directoryPath: string
 ): Promise<NormalizedConversation[]> {
+  // Direct file candidates in the directory
   const candidates = [
     join(directoryPath, "CLAUDE.md"),
     join(directoryPath, ".claude", "CLAUDE.md"),
     join(directoryPath, "MEMORY.md"),
     join(directoryPath, ".claude", "MEMORY.md"),
   ];
+
+  // Also scan projects/*/memory/ for all .md files
+  const projectsDir = join(directoryPath, "projects");
+  try {
+    const projectDirs = await readdir(projectsDir);
+    for (const projDir of projectDirs) {
+      const memoryDir = join(projectsDir, projDir, "memory");
+      try {
+        const memFiles = await readdir(memoryDir);
+        for (const file of memFiles) {
+          if (file.endsWith(".md")) {
+            candidates.push(join(memoryDir, file));
+          }
+        }
+      } catch {
+        // No memory dir for this project
+      }
+    }
+  } catch {
+    // No projects directory
+  }
 
   const results: NormalizedConversation[] = [];
 

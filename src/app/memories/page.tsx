@@ -37,16 +37,16 @@ interface Memory {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  identity: "bg-blue-100 text-blue-800",
-  education_career: "bg-purple-100 text-purple-800",
-  projects: "bg-green-100 text-green-800",
-  research: "bg-yellow-100 text-yellow-800",
-  preferences: "bg-orange-100 text-orange-800",
-  goals: "bg-pink-100 text-pink-800",
-  relationships: "bg-indigo-100 text-indigo-800",
-  writing_voice: "bg-cyan-100 text-cyan-800",
-  workflows: "bg-teal-100 text-teal-800",
-  temporary: "bg-gray-100 text-gray-800",
+  identity: "bg-blue-50 text-blue-700 border-blue-200",
+  education_career: "bg-purple-50 text-purple-700 border-purple-200",
+  projects: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  research: "bg-yellow-50 text-yellow-700 border-yellow-200",
+  preferences: "bg-orange-50 text-orange-700 border-orange-200",
+  goals: "bg-pink-50 text-pink-700 border-pink-200",
+  relationships: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  writing_voice: "bg-cyan-50 text-cyan-700 border-cyan-200",
+  workflows: "bg-teal-50 text-teal-700 border-teal-200",
+  temporary: "bg-gray-50 text-gray-600 border-gray-200",
 };
 
 export default function MemoriesPage() {
@@ -132,7 +132,6 @@ export default function MemoriesPage() {
     URL.revokeObjectURL(url);
   }
 
-  // Count memories per category
   const categoryCounts = new Map<string, number>();
   for (const m of memories) {
     categoryCounts.set(m.category, (categoryCounts.get(m.category) || 0) + 1);
@@ -142,16 +141,16 @@ export default function MemoriesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Memories</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight">Memories</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
             {memories.length} active memor{memories.length !== 1 ? "ies" : "y"}
           </p>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button variant="outline" size="sm">
-                <Download className="mr-1 h-4 w-4" />
+              <Button variant="outline" size="sm" className="h-8 text-xs">
+                <Download className="mr-1.5 h-3.5 w-3.5" />
                 Export
               </Button>
             }
@@ -178,7 +177,7 @@ export default function MemoriesPage() {
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search memories..."
-          className="pl-9"
+          className="pl-9 h-9"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && fetchMemories()}
@@ -187,16 +186,16 @@ export default function MemoriesPage() {
 
       <div className="flex gap-6">
         {/* Category sidebar */}
-        <ScrollArea className="w-56 shrink-0">
-          <div className="space-y-1">
+        <ScrollArea className="w-52 shrink-0">
+          <div className="space-y-0.5">
             <Button
               variant={selectedCategory === null ? "secondary" : "ghost"}
-              className="w-full justify-start text-sm"
+              className="w-full justify-start text-[13px] h-8"
               size="sm"
               onClick={() => setSelectedCategory(null)}
             >
               All Categories
-              <Badge variant="outline" className="ml-auto">
+              <Badge variant="outline" className="ml-auto text-[10px]">
                 {memories.length}
               </Badge>
             </Button>
@@ -206,13 +205,13 @@ export default function MemoriesPage() {
                 <Button
                   key={cat}
                   variant={selectedCategory === cat ? "secondary" : "ghost"}
-                  className="w-full justify-start text-sm"
+                  className="w-full justify-start text-[13px] h-8"
                   size="sm"
                   onClick={() => setSelectedCategory(cat)}
                 >
                   {CATEGORY_LABELS[cat]}
                   {count > 0 && (
-                    <Badge variant="outline" className="ml-auto">
+                    <Badge variant="outline" className="ml-auto text-[10px]">
                       {count}
                     </Badge>
                   )}
@@ -234,9 +233,11 @@ export default function MemoriesPage() {
             </div>
           ) : memories.length === 0 ? (
             <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <Brain className="h-10 w-10 text-muted-foreground mb-3" />
-                <h3 className="font-medium">No memories yet</h3>
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-lime/10 mb-5">
+                  <Brain className="h-6 w-6 text-lime-foreground" />
+                </div>
+                <h3 className="font-semibold">No memories yet</h3>
                 <p className="text-sm text-muted-foreground mt-1">
                   Upload a conversation export to get started
                 </p>
@@ -246,45 +247,47 @@ export default function MemoriesPage() {
             memories
               .filter((m) => !selectedCategory || m.category === selectedCategory)
               .map((memory) => (
-                <Card key={memory.id} className="group">
+                <Card key={memory.id} className="group transition-shadow hover:shadow-sm">
                   <CardContent className="flex items-start justify-between p-4">
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm">{memory.content}</p>
-                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <p className="text-[13px] leading-relaxed">{memory.content}</p>
+                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                         <Badge
-                          className={CATEGORY_COLORS[memory.category] || ""}
+                          className={`${CATEGORY_COLORS[memory.category] || ""} text-[10px] font-medium`}
                           variant="outline"
                         >
                           {memory.category.replace("_", " ")}
                         </Badge>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-[11px] text-muted-foreground">
                           via {memory.source.name}
                         </span>
                         {memory.sensitive && (
-                          <Badge variant="destructive" className="text-xs">
+                          <Badge variant="destructive" className="text-[10px]">
                             Sensitive
                           </Badge>
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                       <Button
                         size="sm"
                         variant="ghost"
+                        className="h-8 w-8 p-0"
                         onClick={() =>
                           setEditDialog({ memory, content: memory.content })
                         }
                         title="Edit"
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
+                        className="h-8 w-8 p-0"
                         onClick={() => handleArchive(memory.id)}
                         title="Archive"
                       >
-                        <Archive className="h-4 w-4" />
+                        <Archive className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </CardContent>
@@ -294,7 +297,6 @@ export default function MemoriesPage() {
         </div>
       </div>
 
-      {/* Edit Dialog */}
       {editDialog && (
         <Dialog open onOpenChange={() => setEditDialog(null)}>
           <DialogContent>
