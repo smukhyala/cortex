@@ -13,7 +13,10 @@ export async function GET(req: NextRequest) {
 
   const memories = await prisma.memory.findMany({
     where,
-    include: { source: { select: { name: true, type: true } } },
+    include: {
+      source: { select: { name: true, type: true, config: true } },
+      conversation: { select: { title: true, externalId: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 

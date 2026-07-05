@@ -1,27 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Search, Download, Archive, Brain, Pencil, Sparkles, GitMerge, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { toast } from "sonner";
-import { Search, Download, Archive, Brain, Pencil } from "lucide-react";
 import { CATEGORY_LABELS, MEMORY_CATEGORIES } from "@/contracts/memory";
 
 interface Memory {
@@ -33,21 +16,28 @@ interface Memory {
   temporality: string;
   sensitive: boolean;
   createdAt: string;
-  source: { name: string; type: string };
+  source: { name: string; type: string; config: string };
+  conversation: { title: string; externalId: string } | null;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  identity: "bg-blue-50 text-blue-700 border-blue-200",
-  education_career: "bg-purple-50 text-purple-700 border-purple-200",
-  projects: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  research: "bg-yellow-50 text-yellow-700 border-yellow-200",
-  preferences: "bg-orange-50 text-orange-700 border-orange-200",
-  goals: "bg-pink-50 text-pink-700 border-pink-200",
-  relationships: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  writing_voice: "bg-cyan-50 text-cyan-700 border-cyan-200",
-  workflows: "bg-teal-50 text-teal-700 border-teal-200",
-  temporary: "bg-gray-50 text-gray-600 border-gray-200",
+  identity: "bg-blue-50 text-blue-700",
+  education_career: "bg-purple-50 text-purple-700",
+  projects: "bg-emerald-50 text-emerald-700",
+  research: "bg-yellow-50 text-yellow-700",
+  preferences: "bg-orange-50 text-orange-700",
+  goals: "bg-pink-50 text-pink-700",
+  relationships: "bg-indigo-50 text-indigo-700",
+  writing_voice: "bg-cyan-50 text-cyan-700",
+  workflows: "bg-teal-50 text-teal-700",
+  temporary: "bg-neutral-100 text-neutral-600",
 };
+
+interface DedupGroup {
+  canonical: string;
+  duplicateIds: string[];
+  reasoning: string;
+}
 
 export default function MemoriesPage() {
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -55,12 +45,13 @@ export default function MemoriesPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [editDialog, setEditDialog] = useState<{ memory: Memory; content: string } | null>(null);
+  const [dedupResult, setDedupResult] = useState<{ groups: DedupGroup[]; uniqueCount: number; duplicateCount: number } | null>(null);
+  const [dedupRunning, setDedupRunning] = useState(false);
 
   const fetchMemories = useCallback(async () => {
     const params = new URLSearchParams({ status: "active" });
     if (selectedCategory) params.set("category", selectedCategory);
     if (search) params.set("q", search);
-
     try {
       const res = await fetch(`/api/memories?${params}`);
       setMemories(await res.json());
@@ -71,15 +62,11 @@ export default function MemoriesPage() {
     }
   }, [selectedCategory, search]);
 
-  useEffect(() => {
-    fetchMemories();
-  }, [fetchMemories]);
+  useEffect(() => { fetchMemories(); }, [fetchMemories]);
 
   async function handleArchive(id: string) {
     try {
-      await fetch(`/api/memories/${id}`, {
-        method: "DELETE",
-      });
+      await fetch(`/api/memories/${id}`, { method: "DELETE" });
       setMemories((prev) => prev.filter((m) => m.id !== id));
       toast.success("Memory archived");
     } catch {
@@ -94,9 +81,7 @@ export default function MemoriesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: newContent }),
       });
-      setMemories((prev) =>
-        prev.map((m) => (m.id === memory.id ? { ...m, content: newContent } : m))
-      );
+      setMemories((prev) => prev.map((m) => (m.id === memory.id ? { ...m, content: newContent } : m)));
       setEditDialog(null);
       toast.success("Memory updated");
     } catch {
@@ -123,6 +108,41 @@ export default function MemoriesPage() {
     }
   }
 
+  async function handleDedupScan() {
+    setDedupRunning(true);
+    try {
+      const res = await fetch("/api/deduplicate");
+      const data = await res.json();
+      setDedupResult(data);
+      if (data.duplicateCount === 0) {
+        toast.success("No duplicates found");
+      } else {
+        toast.info(`Found ${data.duplicateCount} duplicates in ${data.groups.length} groups`);
+      }
+    } catch {
+      toast.error("Dedup scan failed");
+    } finally {
+      setDedupRunning(false);
+    }
+  }
+
+  async function handleDedupApply() {
+    if (!dedupResult?.groups.length) return;
+    try {
+      const res = await fetch("/api/deduplicate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groups: dedupResult.groups }),
+      });
+      const data = await res.json();
+      toast.success(`Merged ${data.merged} groups, archived ${data.archived} duplicates`);
+      setDedupResult(null);
+      fetchMemories();
+    } catch {
+      toast.error("Failed to apply dedup");
+    }
+  }
+
   function downloadBlob(blob: Blob, filename: string) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -137,193 +157,218 @@ export default function MemoriesPage() {
     categoryCounts.set(m.category, (categoryCounts.get(m.category) || 0) + 1);
   }
 
+  const filtered = memories.filter((m) => !selectedCategory || m.category === selectedCategory);
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-10">
+      <div className="flex items-center justify-between" data-animate>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Memories</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="maze-eyebrow mb-4">Library</p>
+          <h1>Memories</h1>
+          <p className="maze-body mt-3">
             {memories.length} active memor{memories.length !== 1 ? "ies" : "y"}
           </p>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button variant="outline" size="sm" className="h-8 text-xs">
-                <Download className="mr-1.5 h-3.5 w-3.5" />
-                Export
-              </Button>
-            }
-          />
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => handleExport("chatgpt")}>
-              ChatGPT (Custom Instructions)
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleExport("claude")}>
-              Claude (CLAUDE.md)
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleExport("json")}>
-              JSON (full export)
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleExport("poke")}>
-              Push to Poke
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2">
+          <button
+            className="maze-btn maze-btn-outline gap-1.5 text-[13px]"
+            onClick={handleDedupScan}
+            disabled={dedupRunning}
+          >
+            <Sparkles className={`h-3.5 w-3.5 ${dedupRunning ? "animate-spin" : ""}`} />
+            {dedupRunning ? "Scanning..." : "Deduplicate"}
+          </button>
+          <div className="relative">
+            <button className="maze-btn gap-1.5 text-[13px]" onClick={() => {
+              const el = document.getElementById("export-menu");
+              if (el) el.classList.toggle("hidden");
+            }}>
+              <Download className="h-3.5 w-3.5" />
+              Export
+            </button>
+          <div id="export-menu" className="hidden absolute right-0 mt-2 w-56 maze-card py-1 z-50">
+            {[
+              { key: "chatgpt", label: "ChatGPT (Custom Instructions)" },
+              { key: "claude", label: "Claude (CLAUDE.md)" },
+              { key: "json", label: "JSON (full export)" },
+              { key: "poke", label: "Push to Poke" },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                className="w-full text-left px-4 py-2.5 text-[13px] hover:bg-muted transition-colors"
+                onClick={() => {
+                  handleExport(key);
+                  document.getElementById("export-menu")?.classList.add("hidden");
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          </div>
+        </div>
       </div>
+
+      {/* Dedup Results Panel */}
+      {dedupResult && dedupResult.groups.length > 0 && (
+        <div className="maze-block space-y-4" data-animate>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <GitMerge className="h-4 w-4 text-lime" />
+              <h3 className="text-base">Duplicate Scan Results</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <button className="maze-btn maze-btn-lime text-[12px] h-8" onClick={handleDedupApply}>
+                Merge All ({dedupResult.duplicateCount} duplicates)
+              </button>
+              <button className="maze-btn maze-btn-ghost h-8 w-8 p-0 min-h-0" onClick={() => setDedupResult(null)}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {dedupResult.groups.map((group, i) => (
+              <div key={i} className="maze-card-static p-4">
+                <p className="text-[11px] text-muted-foreground mb-2">{group.reasoning}</p>
+                <div className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <p className="maze-eyebrow text-lime mb-1">Keep</p>
+                    <p className="text-[13px] font-medium">{group.canonical}</p>
+                  </div>
+                  <div className="flex-1">
+                    <p className="maze-eyebrow text-red-400 mb-1">Archive ({group.duplicateIds.length - 1})</p>
+                    {group.duplicateIds.slice(1).map((id) => {
+                      const mem = memories.find((m) => m.id === id);
+                      return mem && <p key={id} className="text-[12px] text-muted-foreground line-through">{mem.content}</p>;
+                    })}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search memories..."
-          className="pl-9 h-9"
+          className="pl-10 h-10 rounded-lg border-border shadow-sm"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && fetchMemories()}
         />
       </div>
 
-      <div className="flex gap-6">
+      <div className="flex gap-8">
         {/* Category sidebar */}
-        <ScrollArea className="w-52 shrink-0">
-          <div className="space-y-0.5">
-            <Button
-              variant={selectedCategory === null ? "secondary" : "ghost"}
-              className="w-full justify-start text-[13px] h-8"
-              size="sm"
-              onClick={() => setSelectedCategory(null)}
-            >
-              All Categories
-              <Badge variant="outline" className="ml-auto text-[10px]">
-                {memories.length}
-              </Badge>
-            </Button>
-            {MEMORY_CATEGORIES.map((cat) => {
-              const count = categoryCounts.get(cat) || 0;
-              return (
-                <Button
-                  key={cat}
-                  variant={selectedCategory === cat ? "secondary" : "ghost"}
-                  className="w-full justify-start text-[13px] h-8"
-                  size="sm"
-                  onClick={() => setSelectedCategory(cat)}
-                >
-                  {CATEGORY_LABELS[cat]}
-                  {count > 0 && (
-                    <Badge variant="outline" className="ml-auto text-[10px]">
-                      {count}
-                    </Badge>
-                  )}
-                </Button>
-              );
-            })}
-          </div>
-        </ScrollArea>
+        <div className="w-48 shrink-0 space-y-0.5">
+          <button
+            className={`w-full text-left px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
+              selectedCategory === null ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            }`}
+            onClick={() => setSelectedCategory(null)}
+          >
+            All
+            <span className="float-right text-[11px] text-muted-foreground">{memories.length}</span>
+          </button>
+          {MEMORY_CATEGORIES.map((cat) => {
+            const count = categoryCounts.get(cat) || 0;
+            return (
+              <button
+                key={cat}
+                className={`w-full text-left px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
+                  selectedCategory === cat ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+                onClick={() => setSelectedCategory(cat)}
+              >
+                {CATEGORY_LABELS[cat]}
+                {count > 0 && <span className="float-right text-[11px] text-muted-foreground">{count}</span>}
+              </button>
+            );
+          })}
+        </div>
 
         {/* Memory list */}
-        <div className="flex-1 space-y-2">
+        <div className="flex-1 space-y-3">
           {loading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="h-16 p-4" />
-                </Card>
-              ))}
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => <div key={i} className="maze-card h-20 animate-pulse" />)}
             </div>
-          ) : memories.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-lime/10 mb-5">
-                  <Brain className="h-6 w-6 text-lime-foreground" />
-                </div>
-                <h3 className="font-semibold">No memories yet</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Upload a conversation export to get started
-                </p>
-              </CardContent>
-            </Card>
+          ) : filtered.length === 0 ? (
+            <div className="maze-card flex flex-col items-center justify-center py-14 text-center">
+              <div className="h-14 w-14 rounded-2xl bg-lime/10 flex items-center justify-center mb-5">
+                <Brain className="h-6 w-6 text-lime" />
+              </div>
+              <h3 className="text-base font-semibold">No memories yet</h3>
+              <p className="text-sm text-muted-foreground mt-1.5">
+                Upload a conversation export to get started
+              </p>
+            </div>
           ) : (
-            memories
-              .filter((m) => !selectedCategory || m.category === selectedCategory)
-              .map((memory) => (
-                <Card key={memory.id} className="group transition-shadow hover:shadow-sm">
-                  <CardContent className="flex items-start justify-between p-4">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[13px] leading-relaxed">{memory.content}</p>
-                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                        <Badge
-                          className={`${CATEGORY_COLORS[memory.category] || ""} text-[10px] font-medium`}
-                          variant="outline"
-                        >
-                          {memory.category.replace("_", " ")}
-                        </Badge>
-                        <span className="text-[11px] text-muted-foreground">
-                          via {memory.source.name}
-                        </span>
-                        {memory.sensitive && (
-                          <Badge variant="destructive" className="text-[10px]">
-                            Sensitive
-                          </Badge>
+            filtered.map((memory) => (
+              <div key={memory.id} className="maze-card group">
+                <div className="flex items-start justify-between p-5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] leading-relaxed">{memory.content}</p>
+                    <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                      <span className={`maze-tag ${CATEGORY_COLORS[memory.category] || ""}`}>
+                        {memory.category.replace("_", " ")}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        via {memory.source.name}
+                        {memory.conversation?.title && (
+                          <> &middot; {memory.conversation.title.length > 40 ? memory.conversation.title.slice(0, 40) + "..." : memory.conversation.title}</>
                         )}
-                      </div>
+                        {(() => {
+                          try {
+                            const config = JSON.parse(memory.source.config || "{}");
+                            if (config.path) {
+                              const short = config.path.replace(/.*\/\.claude\//, "~/.claude/").replace(/\/Users\/\w+\//, "~/");
+                              return <> &middot; <span className="font-mono text-[10px]">{short}</span></>;
+                            }
+                          } catch { /* ignore */ }
+                          return null;
+                        })()}
+                      </span>
+                      {memory.sensitive && (
+                        <span className="maze-tag bg-red-50 text-red-600">sensitive</span>
+                      )}
                     </div>
-                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 p-0"
-                        onClick={() =>
-                          setEditDialog({ memory, content: memory.content })
-                        }
-                        title="Edit"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 p-0"
-                        onClick={() => handleArchive(memory.id)}
-                        title="Archive"
-                      >
-                        <Archive className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                  </div>
+                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-4">
+                    <button className="maze-btn maze-btn-ghost h-8 w-8 p-0 min-h-0 rounded-lg" onClick={() => setEditDialog({ memory, content: memory.content })} title="Edit">
+                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                    <button className="maze-btn maze-btn-ghost h-8 w-8 p-0 min-h-0 rounded-lg" onClick={() => handleArchive(memory.id)} title="Archive">
+                      <Archive className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>
 
+      {/* Edit modal */}
       {editDialog && (
-        <Dialog open onOpenChange={() => setEditDialog(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Memory</DialogTitle>
-            </DialogHeader>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setEditDialog(null)}>
+          <div className="maze-card w-full max-w-lg mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold mb-4">Edit Memory</h3>
             <Textarea
               value={editDialog.content}
-              onChange={(e) =>
-                setEditDialog((prev) =>
-                  prev ? { ...prev, content: e.target.value } : null
-                )
-              }
+              onChange={(e) => setEditDialog((prev) => prev ? { ...prev, content: e.target.value } : null)}
               rows={4}
+              className="mb-4"
             />
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setEditDialog(null)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => handleEdit(editDialog.memory, editDialog.content)}
-              >
-                Save
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            <div className="flex justify-end gap-2">
+              <button className="maze-btn maze-btn-ghost h-9 text-[13px]" onClick={() => setEditDialog(null)}>Cancel</button>
+              <button className="maze-btn h-9 text-[13px]" onClick={() => handleEdit(editDialog.memory, editDialog.content)}>Save</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

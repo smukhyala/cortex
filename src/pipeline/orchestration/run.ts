@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/db";
 import type { PipelineInput, PipelineResult } from "@/contracts/pipeline";
-import { ingest } from "./ingest";
-import { batchExtractMemories } from "./extract";
-import { deduplicateMemories } from "./deduplicate";
-import { commit } from "./commit";
+import { ingest } from "@/pipeline/agents/ingest";
+import { batchExtractMemories } from "@/pipeline/agents/extract";
+import { deduplicateMemories } from "@/pipeline/agents/deduplicate";
+import { commit } from "@/pipeline/agents/commit";
 import type { SourceType, SyncTrigger } from "@/contracts/source";
 
 /**

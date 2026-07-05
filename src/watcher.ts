@@ -1,8 +1,8 @@
 /**
  * Filesystem watcher for Claude Code directories.
  *
- * Watches CLAUDE.md and MEMORY.md files for changes and triggers
- * a sync via the local API when they change.
+ * Watches CLAUDE.md, MEMORY.md, and .jsonl session files for changes
+ * and triggers a sync via the local API when they change.
  *
  * Usage: npx tsx src/watcher.ts [path-to-watch]
  * Default: watches ~/.claude/
@@ -22,6 +22,7 @@ const watchPath = process.argv[2] || join(homedir(), ".claude");
 const resolvedPath = resolve(watchPath);
 
 const WATCH_FILES = ["CLAUDE.md", "MEMORY.md"];
+const WATCH_EXTENSIONS = [".jsonl"];
 
 let debounceTimer: NodeJS.Timeout | null = null;
 let lastSyncTime = 0;
@@ -98,18 +99,21 @@ function startWatching() {
     process.exit(1);
   }
 
-  console.log(`[watcher] Watching ${resolvedPath} for changes to CLAUDE.md / MEMORY.md`);
+  console.log(`[watcher] Watching ${resolvedPath} for changes to CLAUDE.md / MEMORY.md / *.jsonl`);
   console.log(`[watcher] API: ${API_BASE}`);
   console.log(`[watcher] Debounce: ${DEBOUNCE_MS}ms`);
 
   watch(resolvedPath, { recursive: true }, (eventType, filename) => {
     if (!filename) return;
 
-    // Only react to memory files
+    // React to memory files (CLAUDE.md, MEMORY.md) and session files (*.jsonl)
     const isMemoryFile = WATCH_FILES.some(
       (f) => filename === f || filename.endsWith(`/${f}`)
     );
-    if (!isMemoryFile) return;
+    const isSessionFile = WATCH_EXTENSIONS.some(
+      (ext) => filename.endsWith(ext)
+    );
+    if (!isMemoryFile && !isSessionFile) return;
 
     console.log(`[watcher] ${eventType}: ${filename}`);
 

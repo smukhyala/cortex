@@ -90,7 +90,7 @@ export function FileUpload({ onUploadComplete, accept = ".json,.zip", className 
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
     >
-      <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+      <div className="flex flex-col items-center justify-center py-8 px-6 text-center">
         {state === "idle" || state === "dragging" ? (
           <>
             <div className={`h-14 w-14 rounded-2xl flex items-center justify-center mb-5 transition-all ${

@@ -29,7 +29,6 @@ export async function ingest(params: {
       all = await parseChatGPTExport(params.filePath);
       break;
     case "claude_code": {
-      // Parse both memory files AND actual conversation sessions
       const memories = await parseClaudeCodeMemory(params.filePath);
       const sessions = await parseClaudeCodeSessions(params.filePath);
       all = [...memories, ...sessions];
