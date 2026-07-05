@@ -17,6 +17,7 @@ import {
   Server,
   Upload,
 } from "lucide-react";
+import { ServiceLogo } from "@/components/features/service-logos";
 
 interface Source {
   id: string;
@@ -250,7 +251,7 @@ export default function DashboardPage() {
         <div className="maze-block" data-animate="1">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
             <div className="flex items-start gap-3">
-              <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center text-xs font-semibold text-emerald-700 shrink-0">GP</div>
+              <ServiceLogo type="chatgpt_export" size={18} className="shrink-0" />
               <div>
                 <p className="text-sm font-medium tracking-tight">ChatGPT</p>
                 <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
@@ -259,7 +260,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <div className="h-10 w-10 rounded-xl bg-violet-50 flex items-center justify-center text-xs font-semibold text-violet-700 shrink-0">CL</div>
+              <ServiceLogo type="claude_export" size={18} className="shrink-0" />
               <div>
                 <p className="text-sm font-medium tracking-tight">Claude.ai</p>
                 <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
@@ -268,7 +269,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <div className="h-10 w-10 rounded-xl bg-sky-50 flex items-center justify-center text-xs font-semibold text-sky-700 shrink-0">PK</div>
+              <ServiceLogo type="poke" size={18} className="shrink-0" />
               <div>
                 <p className="text-sm font-medium tracking-tight">Poke</p>
                 <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
@@ -317,16 +318,5 @@ export default function DashboardPage() {
 }
 
 function SourceIcon({ type }: { type: string }) {
-  const config: Record<string, { label: string; bg: string }> = {
-    chatgpt_export: { label: "GP", bg: "bg-emerald-50 text-emerald-700" },
-    claude_code: { label: "CC", bg: "bg-orange-50 text-orange-700" },
-    claude_export: { label: "CL", bg: "bg-violet-50 text-violet-700" },
-    poke: { label: "PK", bg: "bg-sky-50 text-sky-700" },
-  };
-  const c = config[type] || { label: "??", bg: "bg-muted text-muted-foreground" };
-  return (
-    <div className={`h-10 w-10 rounded-xl flex items-center justify-center text-xs font-semibold ${c.bg}`}>
-      {c.label}
-    </div>
-  );
+  return <ServiceLogo type={type} size={18} />;
 }

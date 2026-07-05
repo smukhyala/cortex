@@ -69,6 +69,7 @@ export async function runPipeline(input: {
         reviewItemsCreated: 0,
         duplicatesDropped: 0,
         autoApproved: 0,
+        autoSuperseded: 0,
         durationMs,
         tokensUsed: 0,
       };
@@ -161,6 +162,7 @@ export async function runPipeline(input: {
           reviewItemsCreated: commitResult.reviewItemsCreated,
           duplicatesDropped: dedup.output.duplicatesDropped,
           autoApproved: commitResult.autoApproved,
+          autoSuperseded: commitResult.autoSuperseded,
           tokensUsed: totalTokens,
         }),
       },
@@ -175,6 +177,7 @@ export async function runPipeline(input: {
       reviewItemsCreated: commitResult.reviewItemsCreated,
       duplicatesDropped: dedup.output.duplicatesDropped,
       autoApproved: commitResult.autoApproved,
+      autoSuperseded: commitResult.autoSuperseded,
       durationMs,
       tokensUsed: totalTokens,
     };

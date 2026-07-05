@@ -12,7 +12,8 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "mcp": "npx tsx src/mcp/server.ts",
-    "watch:claude": "npx tsx src/watcher.ts"
+    "watch:claude": "npx tsx src/watcher.ts",
+    "watch:granola": "npx tsx src/integrations/granola/watcher.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",

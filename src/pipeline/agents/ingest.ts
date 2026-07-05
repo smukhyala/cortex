@@ -4,6 +4,7 @@ import { parseChatGPTExport } from "@/parsers/chatgpt";
 import { parseClaudeCodeMemory } from "@/parsers/claude-code";
 import { parseClaudeExport } from "@/parsers/claude-export";
 import { parseClaudeCodeSessions } from "@/integrations/claude/session-parser";
+import { parseGranolaNotes } from "@/integrations/granola/parser";
 import { prisma } from "@/lib/db";
 
 export interface IngestResult {
@@ -36,6 +37,9 @@ export async function ingest(params: {
     }
     case "claude_export":
       all = await parseClaudeExport(params.filePath);
+      break;
+    case "granola":
+      all = await parseGranolaNotes(params.filePath);
       break;
     case "poke":
       // Poke has no read API — this would only work with a manual file upload

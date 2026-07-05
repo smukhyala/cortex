@@ -96,6 +96,7 @@ export const PipelineResultSchema = z.object({
   reviewItemsCreated: z.number(),
   duplicatesDropped: z.number(),
   autoApproved: z.number(),
+  autoSuperseded: z.number(),
   durationMs: z.number(),
   tokensUsed: z.number(),
 });

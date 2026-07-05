@@ -6,14 +6,18 @@ export interface CommitResult {
   reviewItemsCreated: number;
   conflictsCreated: number;
   autoApproved: number;
+  autoSuperseded: number;
 }
 
 /**
  * Agent 4: Commit
  * Writes memories, conflicts, and review items to the database.
  *
- * Auto-approve logic: A memory is auto-approved ONLY if it is a refinement
- * of an already-approved memory AND not sensitive AND not a correction.
+ * Auto-resolve logic:
+ * - refinement: auto-merge new detail into existing memory (no review needed)
+ * - supersede: auto-replace existing memory with new content (no review needed)
+ * - contradiction: requires manual review (genuine disagreement)
+ * - duplicate: already dropped by dedup agent before reaching commit
  */
 export async function commit(params: {
   sourceId: string;
@@ -25,6 +29,7 @@ export async function commit(params: {
   let reviewItemsCreated = 0;
   let conflictsCreated = 0;
   let autoApproved = 0;
+  let autoSuperseded = 0;
 
   // 1. Create memories for clean (non-conflicting) extracted memories
   for (const mem of params.clean) {
@@ -57,9 +62,10 @@ export async function commit(params: {
 
   // 2. Handle conflicts
   for (const conflict of params.conflicts) {
-    if (conflict.type === "refinement" && !conflict.newMemory.sensitive && !conflict.newMemory.isCorrection) {
-      // Auto-merge refinements: update existing memory content
+    // ── Refinement: auto-merge new detail into existing memory ──────────
+    if (conflict.type === "refinement") {
       const merged = conflict.mergedContent || conflict.newMemory.content;
+      const previousContent = conflict.existingContent;
       await prisma.memory.update({
         where: { id: conflict.existingMemoryId },
         data: {
@@ -68,9 +74,54 @@ export async function commit(params: {
         },
       });
       autoApproved++;
+
+      // Log activity so the user can see what was auto-merged
+      await prisma.activityLog.create({
+        data: {
+          action: "auto_merge_refinement",
+          summary: `Auto-merged refinement into existing memory`,
+          details: JSON.stringify({
+            existingMemoryId: conflict.existingMemoryId,
+            previousContent,
+            mergedContent: merged,
+            newContent: conflict.newMemory.content,
+            reasoning: conflict.reasoning,
+          }),
+        },
+      });
       continue;
     }
 
+    // ── Supersede: auto-replace existing memory with new content ────────
+    if (conflict.type === "supersede") {
+      const merged = conflict.mergedContent || conflict.newMemory.content;
+      const previousContent = conflict.existingContent;
+      await prisma.memory.update({
+        where: { id: conflict.existingMemoryId },
+        data: {
+          content: merged,
+          updatedAt: new Date(),
+        },
+      });
+      autoSuperseded++;
+
+      // Log activity so the user can see what was auto-replaced
+      await prisma.activityLog.create({
+        data: {
+          action: "auto_supersede",
+          summary: `Auto-replaced memory with newer information`,
+          details: JSON.stringify({
+            existingMemoryId: conflict.existingMemoryId,
+            previousContent,
+            newContent: merged,
+            reasoning: conflict.reasoning,
+          }),
+        },
+      });
+      continue;
+    }
+
+    // ── Contradiction: requires manual review ──────────────────────────
     // Create the new memory as pending
     const newMemory = await prisma.memory.create({
       data: {
@@ -114,5 +165,5 @@ export async function commit(params: {
     reviewItemsCreated++;
   }
 
-  return { memoriesCreated, reviewItemsCreated, conflictsCreated, autoApproved };
+  return { memoriesCreated, reviewItemsCreated, conflictsCreated, autoApproved, autoSuperseded };
 }

@@ -4,6 +4,7 @@ export const SourceTypeSchema = z.enum([
   "chatgpt_export",
   "claude_code",
   "claude_export",
+  "granola",
   "poke",
 ]);
 export type SourceType = z.infer<typeof SourceTypeSchema>;

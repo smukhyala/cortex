@@ -7,6 +7,12 @@ interface FileUploadProps {
   onUploadComplete?: (result: UploadResult) => void;
   accept?: string;
   className?: string;
+  /** Override auto-detected source type (e.g. "claude_export", "chatgpt_export") */
+  sourceType?: string;
+  /** Override auto-detected source name */
+  sourceName?: string;
+  /** Compact mode for embedding in dialogs */
+  compact?: boolean;
 }
 
 interface UploadResult {
@@ -17,7 +23,7 @@ interface UploadResult {
 
 type UploadState = "idle" | "dragging" | "uploading" | "success" | "error";
 
-export function FileUpload({ onUploadComplete, accept = ".json,.zip", className }: FileUploadProps) {
+export function FileUpload({ onUploadComplete, accept = ".json,.zip", className, sourceType: sourceTypeProp, sourceName: sourceNameProp, compact }: FileUploadProps) {
   const [state, setState] = useState<UploadState>("idle");
   const [fileName, setFileName] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -30,11 +36,14 @@ export function FileUpload({ onUploadComplete, accept = ".json,.zip", className 
 
     const formData = new FormData();
     formData.append("file", file);
-    const name = file.name.toLowerCase();
-    let sourceType = "chatgpt_export";
-    if (name.includes("claude")) sourceType = "claude_export";
+    let sourceType = sourceTypeProp;
+    if (!sourceType) {
+      const name = file.name.toLowerCase();
+      sourceType = name.includes("claude") ? "claude_export" : "chatgpt_export";
+    }
+    const sourceName = sourceNameProp || (sourceType === "chatgpt_export" ? "ChatGPT Export" : "Claude Export");
     formData.append("sourceType", sourceType);
-    formData.append("sourceName", sourceType === "chatgpt_export" ? "ChatGPT Export" : "Claude Export");
+    formData.append("sourceName", sourceName);
 
     try {
       const res = await fetch("/api/upload", { method: "POST", body: formData });
@@ -90,21 +99,21 @@ export function FileUpload({ onUploadComplete, accept = ".json,.zip", className 
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
     >
-      <div className="flex flex-col items-center justify-center py-8 px-6 text-center">
+      <div className={`flex flex-col items-center justify-center text-center ${compact ? "py-5 px-4" : "py-8 px-6"}`}>
         {state === "idle" || state === "dragging" ? (
           <>
-            <div className={`h-14 w-14 rounded-2xl flex items-center justify-center mb-5 transition-all ${
+            <div className={`${compact ? "h-10 w-10 rounded-xl mb-3" : "h-14 w-14 rounded-2xl mb-5"} flex items-center justify-center transition-all ${
               state === "dragging" ? "bg-lime/15 scale-110" : "bg-muted"
             }`}>
-              <Upload className={`h-5 w-5 ${state === "dragging" ? "text-lime" : "text-muted-foreground"}`} />
+              <Upload className={`${compact ? "h-4 w-4" : "h-5 w-5"} ${state === "dragging" ? "text-lime" : "text-muted-foreground"}`} />
             </div>
-            <p className="text-[15px] font-bold tracking-tight" style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}>
+            <p className={`${compact ? "text-[13px]" : "text-[15px]"} font-bold tracking-tight`} style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}>
               {state === "dragging" ? "Drop your file here" : "Drop a conversation export"}
             </p>
-            <p className="text-[13px] text-muted-foreground mt-1.5 mb-6">
+            <p className={`text-[13px] text-muted-foreground mt-1.5 ${compact ? "mb-3" : "mb-6"}`}>
               ChatGPT (.zip or .json) &middot; Claude (.json)
             </p>
-            <button className="maze-btn-outline maze-btn" onClick={() => inputRef.current?.click()}>
+            <button className={`maze-btn-outline maze-btn ${compact ? "h-8 text-xs" : ""}`} onClick={() => inputRef.current?.click()}>
               <FileText className="h-3.5 w-3.5" />
               Browse Files
             </button>
@@ -112,32 +121,32 @@ export function FileUpload({ onUploadComplete, accept = ".json,.zip", className 
           </>
         ) : state === "uploading" ? (
           <>
-            <div className="h-14 w-14 rounded-2xl bg-lime/10 flex items-center justify-center mb-5">
-              <Loader2 className="h-5 w-5 text-lime animate-spin" />
+            <div className={`${compact ? "h-10 w-10 rounded-xl mb-3" : "h-14 w-14 rounded-2xl mb-5"} bg-lime/10 flex items-center justify-center`}>
+              <Loader2 className={`${compact ? "h-4 w-4" : "h-5 w-5"} text-lime animate-spin`} />
             </div>
-            <p className="text-[15px] font-bold tracking-tight" style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}>{fileName}</p>
+            <p className={`${compact ? "text-[13px]" : "text-[15px]"} font-bold tracking-tight`} style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}>{fileName}</p>
             <p className="text-[13px] text-muted-foreground mt-1.5">{message}</p>
-            <div className="w-48 h-1.5 bg-muted rounded-full mt-6 overflow-hidden">
+            <div className={`w-48 h-1.5 bg-muted rounded-full overflow-hidden ${compact ? "mt-3" : "mt-6"}`}>
               <div className="h-full bg-lime rounded-full animate-pulse w-2/3" />
             </div>
           </>
         ) : state === "success" ? (
           <>
-            <div className="h-14 w-14 rounded-2xl bg-lime/10 flex items-center justify-center mb-5">
-              <CheckCircle className="h-5 w-5 text-lime" />
+            <div className={`${compact ? "h-10 w-10 rounded-xl mb-3" : "h-14 w-14 rounded-2xl mb-5"} bg-lime/10 flex items-center justify-center`}>
+              <CheckCircle className={`${compact ? "h-4 w-4" : "h-5 w-5"} text-lime`} />
             </div>
-            <p className="text-[15px] font-bold tracking-tight" style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}>{fileName}</p>
+            <p className={`${compact ? "text-[13px]" : "text-[15px]"} font-bold tracking-tight`} style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}>{fileName}</p>
             <p className="text-[13px] text-muted-foreground mt-1.5">{message}</p>
-            <button className="maze-btn mt-6" onClick={reset}>Upload Another</button>
+            <button className={`maze-btn ${compact ? "mt-3 h-8 text-xs" : "mt-6"}`} onClick={reset}>Upload Another</button>
           </>
         ) : (
           <>
-            <div className="h-14 w-14 rounded-2xl bg-red-50 flex items-center justify-center mb-5">
-              <XCircle className="h-5 w-5 text-red-500" />
+            <div className={`${compact ? "h-10 w-10 rounded-xl mb-3" : "h-14 w-14 rounded-2xl mb-5"} bg-red-50 flex items-center justify-center`}>
+              <XCircle className={`${compact ? "h-4 w-4" : "h-5 w-5"} text-red-500`} />
             </div>
-            <p className="text-[15px] font-bold tracking-tight" style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}>Upload Failed</p>
+            <p className={`${compact ? "text-[13px]" : "text-[15px]"} font-bold tracking-tight`} style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}>Upload Failed</p>
             <p className="text-[13px] text-red-500 mt-1.5">{message}</p>
-            <button className="maze-btn mt-6" onClick={reset}>Try Again</button>
+            <button className={`maze-btn ${compact ? "mt-3 h-8 text-xs" : "mt-6"}`} onClick={reset}>Try Again</button>
           </>
         )}
       </div>
