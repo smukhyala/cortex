@@ -102,6 +102,7 @@ function startWatching() {
   console.log(`[watcher] Watching ${resolvedPath} for changes to CLAUDE.md / MEMORY.md / *.jsonl`);
   console.log(`[watcher] API: ${API_BASE}`);
   console.log(`[watcher] Debounce: ${DEBOUNCE_MS}ms`);
+  console.log(`[watcher] Tip: Also run 'npm run watch:downloads' to auto-import ChatGPT/Claude exports from ~/Downloads`);
 
   watch(resolvedPath, { recursive: true }, (eventType, filename) => {
     if (!filename) return;
