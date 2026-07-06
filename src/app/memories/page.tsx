@@ -30,6 +30,10 @@ interface DedupGroup {
   reasoning: string;
 }
 
+interface PropagationDestination {
+  success: boolean;
+}
+
 export default function MemoriesPage() {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [categories, setCategories] = useState<CategoryDef[]>([]);
@@ -46,7 +50,6 @@ export default function MemoriesPage() {
     fetch("/api/categories").then(r => r.json()).then(setCategories);
   }, []);
 
-  const categoryLabels: Record<string, string> = Object.fromEntries(categories.map(c => [c.slug, c.label]));
   const categoryColors: Record<string, string> = Object.fromEntries(categories.map(c => [c.slug, c.color]));
 
   const fetchMemories = useCallback(async () => {
@@ -63,7 +66,12 @@ export default function MemoriesPage() {
     }
   }, [selectedCategory, search]);
 
-  useEffect(() => { fetchMemories(); }, [fetchMemories]);
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void fetchMemories();
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [fetchMemories]);
 
   async function handleArchive(id: string) {
     try {
@@ -155,7 +163,8 @@ export default function MemoriesPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        const destCount = data.propagation?.destinations?.filter((d: any) => d.success).length || 0;
+        const destinations = (data.propagation?.destinations ?? []) as PropagationDestination[];
+        const destCount = destinations.filter((d) => d.success).length;
         toast.success(`${data.action === "create" ? "Created" : data.action === "update" ? "Updated" : "Deleted"}: ${data.content}. Propagated to ${destCount} platform(s).`);
         setQuickStatement("");
         fetchMemories();

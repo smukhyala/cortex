@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { propagateToAllPlatforms } from "@/services/propagate";
 
 export async function PATCH(
   req: NextRequest,
@@ -45,6 +46,8 @@ export async function PATCH(
         },
       });
 
+      propagateToAllPlatforms().catch(console.error);
+
       return NextResponse.json({ success: true, action: "approved" });
     }
 
@@ -65,6 +68,8 @@ export async function PATCH(
           summary: `Rejected memory: ${reviewItem.title}`,
         },
       });
+
+      propagateToAllPlatforms().catch(console.error);
 
       return NextResponse.json({ success: true, action: "rejected" });
     }
@@ -135,6 +140,8 @@ export async function PATCH(
           summary: `Resolved conflict (${resolution}): ${reviewItem.title}`,
         },
       });
+
+      propagateToAllPlatforms().catch(console.error);
 
       return NextResponse.json({ success: true, action: "resolved", resolution });
     }

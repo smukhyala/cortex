@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import {
   Brain,
@@ -979,7 +980,7 @@ export default function LandingPage() {
       <footer className="py-8 border-t border-border bg-background">
         <div className="max-w-5xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <img src="/icon.svg" alt="Cortex" className="h-5 w-5" />
+            <Image src="/icon.svg" alt="Cortex" width={20} height={20} className="h-5 w-5" />
             <span
               className="text-sm font-medium tracking-tight text-muted-foreground"
               style={{

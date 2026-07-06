@@ -66,7 +66,12 @@ export default function ReviewPage() {
     }
   }, []);
 
-  useEffect(() => { fetchItems(); }, [fetchItems]);
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void fetchItems();
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [fetchItems]);
 
   async function handleAction(itemId: string, action: string, extra?: Record<string, unknown>) {
     try {

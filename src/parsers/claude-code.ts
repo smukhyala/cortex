@@ -119,23 +119,23 @@ export async function parseClaudeCodeMemory(
 ): Promise<NormalizedConversation[]> {
   // Direct file candidates in the directory
   const candidates = [
-    join(directoryPath, "CLAUDE.md"),
-    join(directoryPath, ".claude", "CLAUDE.md"),
-    join(directoryPath, "MEMORY.md"),
-    join(directoryPath, ".claude", "MEMORY.md"),
+    join(/* turbopackIgnore: true */ directoryPath, "CLAUDE.md"),
+    join(/* turbopackIgnore: true */ directoryPath, ".claude", "CLAUDE.md"),
+    join(/* turbopackIgnore: true */ directoryPath, "MEMORY.md"),
+    join(/* turbopackIgnore: true */ directoryPath, ".claude", "MEMORY.md"),
   ];
 
   // Also scan projects/*/memory/ for all .md files
-  const projectsDir = join(directoryPath, "projects");
+  const projectsDir = join(/* turbopackIgnore: true */ directoryPath, "projects");
   try {
     const projectDirs = await readdir(projectsDir);
     for (const projDir of projectDirs) {
-      const memoryDir = join(projectsDir, projDir, "memory");
+      const memoryDir = join(/* turbopackIgnore: true */ projectsDir, projDir, "memory");
       try {
         const memFiles = await readdir(memoryDir);
         for (const file of memFiles) {
           if (file.endsWith(".md")) {
-            candidates.push(join(memoryDir, file));
+            candidates.push(join(/* turbopackIgnore: true */ memoryDir, file));
           }
         }
       } catch {
@@ -150,12 +150,12 @@ export async function parseClaudeCodeMemory(
 
   for (const filePath of candidates) {
     try {
-      await stat(filePath);
+      await stat(/* turbopackIgnore: true */ filePath);
     } catch {
       continue;
     }
 
-    const content = await readFile(filePath, "utf-8");
+    const content = await readFile(/* turbopackIgnore: true */ filePath, "utf-8");
     if (!content.trim()) continue;
 
     const sections = parseMarkdownSections(content);
@@ -248,7 +248,7 @@ export async function writeClaudeCodeMemory(
 ): Promise<void> {
   let existingContent = "";
   try {
-    existingContent = await readFile(filePath, "utf-8");
+    existingContent = await readFile(/* turbopackIgnore: true */ filePath, "utf-8");
   } catch {
     // File doesn't exist yet
   }
@@ -257,7 +257,7 @@ export async function writeClaudeCodeMemory(
 
   if (!existingContent.trim()) {
     // No existing file — write cortex section only
-    await writeFile(filePath, cortexSection + "\n", "utf-8");
+    await writeFile(/* turbopackIgnore: true */ filePath, cortexSection + "\n", "utf-8");
     return;
   }
 
@@ -271,10 +271,10 @@ export async function writeClaudeCodeMemory(
     const after = existingContent.slice(endIdx + CORTEX_END.length).trimStart();
     const parts = [before, "", cortexSection];
     if (after) parts.push("", after);
-    await writeFile(filePath, parts.join("\n") + "\n", "utf-8");
+    await writeFile(/* turbopackIgnore: true */ filePath, parts.join("\n") + "\n", "utf-8");
   } else {
     // No markers found — append cortex section at the end
     const combined = existingContent.trimEnd() + "\n\n" + cortexSection + "\n";
-    await writeFile(filePath, combined, "utf-8");
+    await writeFile(/* turbopackIgnore: true */ filePath, combined, "utf-8");
   }
 }

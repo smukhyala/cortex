@@ -73,7 +73,7 @@ const definition: ConnectorDefinition = {
   type: "google_drive",
   sourceService: "standalone",
   description:
-    "Scan Google Docs and Drive files for project notes, specs, and personal context.",
+    "Preview connector. Google Drive scanning is not implemented yet.",
   configSchema: Object.fromEntries(
     GOOGLE_DRIVE_CONFIG_FIELDS.map((f) => [f.key, { type: f.type, required: f.required }])
   ),

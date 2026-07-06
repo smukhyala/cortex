@@ -9,7 +9,7 @@ datasource db {
 
 model Source {
   id           String    @id @default(cuid())
-  type         String    // chatgpt_export | claude_code | claude_export | poke
+  type         String    // chatgpt_export | claude_code | claude_desktop | claude_export | granola | manual | poke
   name         String
   accountLabel String?   // e.g., "personal@email.com" or "Work"
   status       String    @default("active") // active | error

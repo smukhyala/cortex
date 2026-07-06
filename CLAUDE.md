@@ -4,11 +4,11 @@ Personal AI memory synchronization layer. Extracts memories from AI conversation
 
 ## Architecture
 
-- Single Next.js 15 app with App Router (no monorepo)
+- Single Next.js 16 app with App Router (no monorepo)
 - Prisma v7 + SQLite via better-sqlite3 adapter (data/cortex.db)
 - 4-agent pipeline: Ingest → Extract+Classify → Deduplicate+Conflict → Commit
 - LLM calls via Anthropic SDK directly (no abstraction layer)
-- MCP server for Poke/Claude to pull context (stdio transport)
+- MCP server for Poke/Claude to pull context (stdio and Streamable HTTP transports)
 - fs.watch script for Claude Code auto-sync
 
 ## Key Directories
@@ -29,14 +29,17 @@ Personal AI memory synchronization layer. Extracts memories from AI conversation
 - Prisma v7: requires adapter (`PrismaBetterSqlite3`), constructor requires options object
 - Pipeline runs synchronously on trigger — no background worker, no polling
 - Tests in `__tests__/` with Vitest, fixtures in `fixtures/`
-- Auto-approve: only refinements of existing approved + not sensitive + not correction
+- Auto-resolve: refinements/supersedes are automatic only when the new memory is not sensitive and not marked as a correction; otherwise they go to review
 - ChatGPT parser handles both .zip and .json files
 - CLAUDE.md write-back uses `<!-- cortex:begin -->` / `<!-- cortex:end -->` markers
+- Gmail, Google Drive, and Notion connectors are currently preview scaffolding; scanning is not implemented yet
+- Manual memories use the `manual` source type; MCP-created memories use `claude_desktop`
 
 ## Commands
 
 - `npm run dev` — Start web UI (port 3000)
 - `npm run mcp` — Start MCP server (stdio)
+- `npm run mcp:http` — Start MCP server (Streamable HTTP, default port 3001)
 - `npm run watch:claude` — Watch ~/.claude/ for changes, auto-trigger sync
 - `npm test` — Run all tests
 - `npm run db:migrate` — Run Prisma migrations

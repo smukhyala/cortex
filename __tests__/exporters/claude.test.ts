@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { formatForClaude } from "@/exporters/claude";
-import { writeClaudeCodeMemory, parseMarkdownSections } from "@/parsers/claude-code";
+import { writeClaudeCodeMemory } from "@/parsers/claude-code";
 import { formatForChatGPT } from "@/exporters/chatgpt";
 import { readFile, writeFile, mkdir, rm } from "fs/promises";
 import path from "path";

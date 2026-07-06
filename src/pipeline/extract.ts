@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { structuredCall, type LLMResult } from "@/lib/llm";
+import { structuredCall } from "@/lib/llm";
 import {
-  ExtractedMemorySchema,
+  createExtractedMemorySchema,
   type ExtractedMemory,
 } from "@/contracts/pipeline";
 import { MEMORY_CATEGORIES } from "@/contracts/memory";
@@ -9,9 +9,11 @@ import type { NormalizedConversation } from "@/contracts/conversation";
 
 // ─── Extraction Schema ──────────────────────────────────────────────────────
 
-const ExtractionResponseSchema = z.object({
-  memories: z.array(ExtractedMemorySchema),
-});
+function createExtractionResponseSchema(categorySlugs?: readonly string[]) {
+  return z.object({
+    memories: z.array(createExtractedMemorySchema(categorySlugs)),
+  });
+}
 
 // ─── System Prompt ──────────────────────────────────────────────────────────
 
@@ -149,7 +151,7 @@ Extract atomic memories. If there are no extractable facts about the user, retur
   const result = await structuredCall({
     system: buildExtractionPrompt(categoryOverrides),
     user: userPrompt,
-    schema: ExtractionResponseSchema,
+    schema: createExtractionResponseSchema(categoryOverrides?.map((c) => c.slug)),
     schemaName: "extract_memories",
     schemaDescription: "Extract atomic personal facts from a conversation",
     maxTokens: 4096,

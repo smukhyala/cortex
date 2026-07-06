@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -30,7 +31,7 @@ export function TopNav() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
           <div className="h-8 w-8 rounded-lg overflow-hidden transition-transform group-hover:scale-105">
-            <img src="/icon.svg" alt="Cortex" className="h-full w-full" />
+            <Image src="/icon.svg" alt="Cortex" width={32} height={32} className="h-full w-full" />
           </div>
           <span className="text-[15px] font-extrabold tracking-tight" style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}>
             Cortex

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { structuredCall } from "@/lib/llm";
 import { propagateToAllPlatforms } from "@/services/propagate";
+import { getCategories } from "@/lib/categories";
 
 const QuickStatementResultSchema = z.object({
   action: z.enum(["create", "update", "delete"]),
@@ -30,6 +31,9 @@ export async function POST(req: NextRequest) {
   const memoriesList = existingMemories
     .map((m) => `[${m.id}] (${m.category}) ${m.content}`)
     .join("\n");
+  const categories = await getCategories();
+  const categoryList = categories.map((c) => `- ${c.slug}: ${c.label}`).join("\n");
+  const validCategorySlugs = new Set(categories.map((c) => c.slug));
 
   const result = await structuredCall({
     system: `You are a memory update agent. The user is making a statement about themselves. Determine what action to take on their memory store.
@@ -42,7 +46,8 @@ Actions:
 - "update": The statement updates/corrects an existing memory. Provide the updated content, category, and the ID of the memory to update (matchingMemoryId).
 - "delete": The statement explicitly says to remove/forget something. Provide the ID of the memory to delete (matchingMemoryId).
 
-Categories available: identity, education_career, projects, research, preferences, goals, relationships, writing_voice, workflows, temporary
+Categories available:
+${categoryList}
 
 Always return the cleanest, most atomic version of the fact as content. For example, if the user says "Actually I'm 25 not 23", the content should be "User is 25 years old".`,
     user: `User statement: "${statement}"`,
@@ -53,19 +58,22 @@ Always return the cleanest, most atomic version of the fact as content. For exam
     temperature: 0,
   });
 
-  const { action, content, category, matchingMemoryId, reasoning } =
+  const { action, content, matchingMemoryId, reasoning } =
     result.data;
+  const category = validCategorySlugs.has(result.data.category)
+    ? result.data.category
+    : (categories[0]?.slug ?? "identity");
 
   let memoryId: string | null = null;
 
   // Need a source for new memories — use or create a "cortex_manual" source
   const getManualSource = async () => {
     let source = await prisma.source.findFirst({
-      where: { type: "poke", name: "Cortex Manual" },
+      where: { type: "manual", name: "Cortex Manual" },
     });
     if (!source) {
       source = await prisma.source.create({
-        data: { type: "poke", name: "Cortex Manual", status: "active" },
+        data: { type: "manual", name: "Cortex Manual", status: "active" },
       });
     }
     return source;

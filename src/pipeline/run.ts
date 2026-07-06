@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/db";
-import type { PipelineInput, PipelineResult } from "@/contracts/pipeline";
+import type { PipelineResult } from "@/contracts/pipeline";
 import { ingest } from "./ingest";
 import { batchExtractMemories } from "./extract";
 import { deduplicateMemories } from "./deduplicate";
 import { commit } from "./commit";
 import type { SourceType, SyncTrigger } from "@/contracts/source";
+import { getCategories } from "@/lib/categories";
 
 /**
  * Run the full 4-agent pipeline synchronously.
@@ -104,12 +105,17 @@ export async function runPipeline(input: {
     }
 
     // ── Agent 2: Extract + Classify ──────────────────────────────────────
-    const extraction = await batchExtractMemories(conversations);
+    const categories = await getCategories();
+    const extraction = await batchExtractMemories(conversations, categories);
 
     // Flatten all extracted memories
     const allMemories = extraction.results.flatMap((r) => {
       const conv = conversations.find((c) => c.externalId === r.conversationId);
-      return r.memories.map((mem) => ({ ...mem, sourceDate: conv?.sourceDate ?? null }));
+      return r.memories.map((mem) => ({
+        ...mem,
+        sourceDate: conv?.sourceDate ?? null,
+        conversationExternalId: conv?.externalId,
+      }));
     });
 
     // ── Agent 3: Deduplicate + Conflict Detect ───────────────────────────

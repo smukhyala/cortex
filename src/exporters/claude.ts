@@ -1,10 +1,49 @@
-import { formatCortexSection, writeClaudeCodeMemory } from "@/parsers/claude-code";
-import { CATEGORY_LABELS, type MemoryCategory } from "@/contracts/memory";
-
 interface MemoryForExport {
   content: string;
   category: string;
   sensitive: boolean;
+}
+
+const CORTEX_BEGIN = "<!-- cortex:begin -->";
+const CORTEX_END = "<!-- cortex:end -->";
+
+const CATEGORY_HEADINGS: Record<string, string> = {
+  identity: "Identity",
+  education_career: "Education & Career",
+  projects: "Projects",
+  research: "Research",
+  preferences: "Preferences",
+  goals: "Goals",
+  relationships: "Relationships",
+  writing_voice: "Writing Voice",
+  workflows: "Workflows",
+  temporary: "Current Context",
+};
+
+export function formatCortexSection(memories: Array<{ content: string; category: string }>): string {
+  const grouped = new Map<string, string[]>();
+  for (const mem of memories) {
+    const existing = grouped.get(mem.category) || [];
+    existing.push(mem.content);
+    grouped.set(mem.category, existing);
+  }
+
+  const lines: string[] = [];
+  lines.push(CORTEX_BEGIN);
+  lines.push(`<!-- Synced by Cortex | ${new Date().toISOString()} -->`);
+
+  for (const [category, items] of grouped) {
+    const heading = CATEGORY_HEADINGS[category] || category;
+    lines.push("");
+    lines.push(`## ${heading}`);
+    lines.push("");
+    for (const item of items) {
+      lines.push(`- ${item}`);
+    }
+  }
+
+  lines.push(CORTEX_END);
+  return lines.join("\n");
 }
 
 /**
@@ -33,5 +72,6 @@ export async function writeClaudeExport(
     ? memories
     : memories.filter((m) => !m.sensitive);
 
+  const { writeClaudeCodeMemory } = await import("@/parsers/claude-code");
   await writeClaudeCodeMemory(filePath, filtered);
 }

@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/db";
 import type { ExtractedMemory, DeduplicationOutput } from "@/contracts/pipeline";
 
+type MemoryWithOrigin = ExtractedMemory & {
+  conversationExternalId?: string | null;
+};
+
 export interface CommitResult {
   memoriesCreated: number;
   reviewItemsCreated: number;
@@ -33,6 +37,11 @@ export async function commit(params: {
 
   // 1. Create memories for clean (non-conflicting) extracted memories
   for (const mem of params.clean) {
+    const origin = mem as MemoryWithOrigin;
+    const conversationId = origin.conversationExternalId
+      ? params.conversationMap.get(origin.conversationExternalId)
+      : undefined;
+
     const memory = await prisma.memory.create({
       data: {
         content: mem.content,
@@ -43,6 +52,7 @@ export async function commit(params: {
         temporality: mem.temporality,
         sensitive: mem.sensitive,
         sourceId: params.sourceId,
+        ...(conversationId ? { conversationId } : {}),
         status: "pending",
       },
     });
@@ -62,8 +72,15 @@ export async function commit(params: {
 
   // 2. Handle conflicts
   for (const conflict of params.conflicts) {
+    const origin = conflict.newMemory as MemoryWithOrigin;
+    const conversationId = origin.conversationExternalId
+      ? params.conversationMap.get(origin.conversationExternalId)
+      : undefined;
+    const canAutoResolve =
+      !conflict.newMemory.sensitive && !conflict.newMemory.isCorrection;
+
     // ── Refinement: auto-merge new detail into existing memory ──────────
-    if (conflict.type === "refinement") {
+    if (conflict.type === "refinement" && canAutoResolve) {
       const merged = conflict.mergedContent || conflict.newMemory.content;
       const previousContent = conflict.existingContent;
       await prisma.memory.update({
@@ -93,7 +110,7 @@ export async function commit(params: {
     }
 
     // ── Supersede: auto-replace existing memory with new content ────────
-    if (conflict.type === "supersede") {
+    if (conflict.type === "supersede" && canAutoResolve) {
       const merged = conflict.mergedContent || conflict.newMemory.content;
       const previousContent = conflict.existingContent;
       await prisma.memory.update({
@@ -133,6 +150,7 @@ export async function commit(params: {
         temporality: conflict.newMemory.temporality,
         sensitive: conflict.newMemory.sensitive,
         sourceId: params.sourceId,
+        ...(conversationId ? { conversationId } : {}),
         status: "pending",
       },
     });

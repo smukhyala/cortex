@@ -1,5 +1,4 @@
 import { formatCortexSection, writeClaudeCodeMemory } from "@/parsers/claude-code";
-import { CATEGORY_LABELS, type MemoryCategory } from "@/contracts/memory";
 
 interface MemoryForExport {
   content: string;

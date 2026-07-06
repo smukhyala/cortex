@@ -3,7 +3,6 @@ import {
   parseMarkdownSections,
   parseClaudeCodeMemory,
   writeClaudeCodeMemory,
-  formatCortexSection,
 } from "@/parsers/claude-code";
 import { readFile, writeFile, mkdir, rm } from "fs/promises";
 import path from "path";

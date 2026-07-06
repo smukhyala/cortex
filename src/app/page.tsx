@@ -15,7 +15,6 @@ import {
   ArrowUpRight,
   CircleDot,
   Server,
-  Upload,
 } from "lucide-react";
 import { ServiceLogo } from "@/components/features/service-logos";
 import { SOURCE_TYPE_DISPLAY } from "@/contracts/source";

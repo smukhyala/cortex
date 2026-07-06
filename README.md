@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cortex
 
-## Getting Started
+Personal AI memory synchronization for ChatGPT, Claude, Claude Code, Poke, and local knowledge sources.
 
-First, run the development server:
+Cortex imports conversation exports and local memory files, extracts durable user facts with Claude, deduplicates/conflict-checks them, queues new memories for review, and exports the approved profile back into formats each AI tool can consume.
+
+## Current Status
+
+Implemented:
+
+- ChatGPT export import from `.zip` or `.json`.
+- Claude.ai export import from JSON.
+- Claude Code memory/session import from `CLAUDE.md`, `MEMORY.md`, and `.jsonl` sessions.
+- Granola markdown note import and watcher.
+- Anthropic-powered extraction, categorization, deduplication, and conflict detection.
+- Review queue, memory library, quick memory updates, and graph view.
+- Export to ChatGPT Custom Instructions text, Claude `CLAUDE.md`, JSON, and Poke inbound API.
+- MCP stdio and HTTP servers for reading and logging memories.
+
+Preview/scaffolded:
+
+- Gmail, Google Drive, and Notion connector cards are present, but service scanning is not implemented yet.
+- Connector configuration is a UI/API preview rather than a durable background sync system.
+
+## Architecture
+
+- Next.js 16 App Router application.
+- Prisma v7 with SQLite through the `better-sqlite3` adapter.
+- Synchronous 4-step pipeline: ingest, extract/classify, deduplicate/conflict-check, commit.
+- Direct Anthropic SDK calls for structured LLM output.
+- Local filesystem watchers for Claude Code, Granola, and Downloads import workflows.
+
+## Commands
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev          # Start web UI on port 3000
+npm run build        # Production build
+npm run lint         # ESLint
+npm test             # Vitest
+npm run db:migrate   # Prisma migrations
+npm run db:studio    # Prisma Studio
+npm run mcp          # MCP server over stdio
+npm run mcp:http     # MCP server over Streamable HTTP
+npm run watch:claude # Watch ~/.claude
+npm run watch:granola
+npm run watch:downloads
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create `.env` with:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+DATABASE_URL="file:../data/cortex.db"
+ANTHROPIC_API_KEY="..."
+POKE_API_KEY="..." # optional if you configure a Poke account in Settings
+```
 
-## Learn More
+## Data
 
-To learn more about Next.js, take a look at the following resources:
+Runtime data lives under `data/`:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `data/cortex.db` stores sources, conversations, memories, review items, conflicts, activity, export logs, and categories.
+- `data/uploads/` stores uploaded conversation exports.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Notes
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- New memories are pending until approved.
+- Approved memory edits, deletes, review approvals, and quick updates trigger platform propagation.
+- Sensitive memories are excluded from ChatGPT, Claude, and Poke exports unless an exporter is explicitly called with `includeSensitive`.
+- Custom categories are stored in the database and are passed into new extraction runs.

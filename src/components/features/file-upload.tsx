@@ -66,7 +66,7 @@ export function FileUpload({ onUploadComplete, accept = ".json,.zip", className,
       setMessage("Failed to connect to server");
       onUploadComplete?.({ success: false, error: err instanceof Error ? err.message : "Unknown error" });
     }
-  }, [onUploadComplete]);
+  }, [onUploadComplete, sourceNameProp, sourceTypeProp]);
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();

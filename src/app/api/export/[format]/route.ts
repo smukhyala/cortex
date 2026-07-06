@@ -4,6 +4,25 @@ import { formatForChatGPT } from "@/exporters/chatgpt";
 import { formatForClaude } from "@/exporters/claude";
 import { pushToPoke } from "@/exporters/poke";
 
+function readConfig(config: string | null | undefined): Record<string, unknown> {
+  try {
+    return JSON.parse(config || "{}");
+  } catch {
+    return {};
+  }
+}
+
+async function getPokeApiKey(): Promise<string | null> {
+  if (process.env.POKE_API_KEY) return process.env.POKE_API_KEY;
+
+  const source = await prisma.source.findFirst({
+    where: { type: "poke", status: "active" },
+    orderBy: { createdAt: "desc" },
+  });
+  const apiKey = source ? readConfig(source.config).apiKey : null;
+  return typeof apiKey === "string" && apiKey.length > 0 ? apiKey : null;
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ format: string }> }
@@ -57,10 +76,10 @@ export async function GET(
     }
 
     case "poke": {
-      const apiKey = process.env.POKE_API_KEY;
+      const apiKey = await getPokeApiKey();
       if (!apiKey) {
         return NextResponse.json(
-          { error: "POKE_API_KEY not configured" },
+          { error: "No Poke API key configured. Add POKE_API_KEY or a Poke account in Settings." },
           { status: 400 }
         );
       }

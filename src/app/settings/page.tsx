@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Trash2, FolderOpen, CheckCircle, XCircle, Zap, Server, RefreshCw, User, HardDrive, Loader2, Mail, FileText, StickyNote, MessageSquare, Plug, Settings2, Unplug, ArrowLeft, Scan, Sparkles, ExternalLink, Pencil, Check, X, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, CheckCircle, XCircle, Zap, Server, RefreshCw, User, HardDrive, Loader2, Mail, FileText, StickyNote, MessageSquare, Plug, Settings2, Unplug, ArrowLeft, Scan, Sparkles, ExternalLink, Pencil, Check, X, AlertTriangle } from "lucide-react";
 import { FileUpload } from "@/components/features/file-upload";
 import { SOURCE_TYPE_DISPLAY } from "@/contracts/source";
 import {

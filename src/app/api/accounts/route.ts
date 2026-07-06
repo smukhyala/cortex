@@ -15,6 +15,22 @@ interface Account {
   memoryCount: number;
 }
 
+function safeExists(path: string): boolean {
+  return existsSync(/* turbopackIgnore: true */ path);
+}
+
+function safeResolve(path: string): string {
+  return resolve(/* turbopackIgnore: true */ path);
+}
+
+function readConfig(config: string): Record<string, unknown> {
+  try {
+    return JSON.parse(config || "{}");
+  } catch {
+    return {};
+  }
+}
+
 /**
  * Scan for detected Claude Code profiles:
  * 1. Default ~/.claude/ directory
@@ -29,7 +45,7 @@ export async function GET() {
   const defaultClaudeDir = resolve(homedir(), ".claude");
   seenPaths.add(defaultClaudeDir);
 
-  const defaultExists = existsSync(defaultClaudeDir);
+  const defaultExists = safeExists(defaultClaudeDir);
   const defaultSource = await prisma.source.findFirst({
     where: { type: "claude_code", config: { contains: defaultClaudeDir } },
     include: { _count: { select: { memories: true } } },
@@ -49,12 +65,12 @@ export async function GET() {
   // 2. Scan CLAUDE_PROFILE_*_PATH env vars
   for (const [key, value] of Object.entries(process.env)) {
     if (/^CLAUDE_PROFILE_\d+_PATH$/.test(key) && value) {
-      const profilePath = resolve(value);
+      const profilePath = safeResolve(value);
       if (seenPaths.has(profilePath)) continue;
       seenPaths.add(profilePath);
 
       const profileNum = key.match(/CLAUDE_PROFILE_(\d+)_PATH/)?.[1] ?? "?";
-      const profileExists = existsSync(profilePath);
+      const profileExists = safeExists(profilePath);
       const profileSource = await prisma.source.findFirst({
         where: { type: "claude_code", config: { contains: profilePath } },
         include: { _count: { select: { memories: true } } },
@@ -79,17 +95,18 @@ export async function GET() {
   });
 
   for (const source of allSources) {
-    const config = JSON.parse(source.config || "{}");
-    const sourcePath = config.path || config.filePath || "";
-    if (sourcePath && seenPaths.has(resolve(sourcePath))) continue;
-    if (sourcePath) seenPaths.add(resolve(sourcePath));
+    const config = readConfig(source.config);
+    const sourcePathValue = config.path || config.filePath || "";
+    const sourcePath = typeof sourcePathValue === "string" ? sourcePathValue : "";
+    if (sourcePath && seenPaths.has(safeResolve(sourcePath))) continue;
+    if (sourcePath) seenPaths.add(safeResolve(sourcePath));
 
     accounts.push({
       id: source.id,
       name: source.name,
       type: source.type,
       path: sourcePath,
-      exists: sourcePath ? existsSync(sourcePath) : false,
+      exists: sourcePath ? safeExists(sourcePath) : false,
       registered: true,
       sourceId: source.id,
       memoryCount: source._count.memories,
@@ -128,7 +145,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check path exists for filesystem-based sources
-    if (path && !existsSync(path)) {
+    if (path && !safeExists(path)) {
       return NextResponse.json(
         { error: `Directory not found: ${path}` },
         { status: 400 }

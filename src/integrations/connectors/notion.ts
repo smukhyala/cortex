@@ -63,7 +63,7 @@ const definition: ConnectorDefinition = {
   type: "notion",
   sourceService: "standalone",
   description:
-    "Scan Notion pages, databases, and journals for personal context and project knowledge.",
+    "Preview connector. Notion scanning is not implemented yet.",
   configSchema: Object.fromEntries(
     NOTION_CONFIG_FIELDS.map((f) => [f.key, { type: f.type, required: f.required }])
   ),
@@ -80,7 +80,7 @@ export const notionConnector: Connector = {
     return null;
   },
 
-  async testConnection(config) {
+  async testConnection() {
     // Implementation would use the Notion API:
     //
     //   const notion = new Client({ auth: config.apiToken });

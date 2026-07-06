@@ -15,6 +15,18 @@ interface PropagationResult {
   chatgptText?: string; // ChatGPT doesn't have write-back, so return text for user to copy
 }
 
+function readConfig(config: string | null | undefined): Record<string, unknown> {
+  try {
+    return JSON.parse(config || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function isDirectory(filePath: string): boolean {
+  return fs.statSync(/* turbopackIgnore: true */ filePath).isDirectory();
+}
+
 export async function propagateToAllPlatforms(): Promise<PropagationResult> {
   const memories = await prisma.memory.findMany({
     where: { status: "active" },
@@ -32,12 +44,13 @@ export async function propagateToAllPlatforms(): Promise<PropagationResult> {
   const claudeCodeSources = sources.filter((s) => s.type === "claude_code");
   for (const source of claudeCodeSources) {
     try {
-      const config = JSON.parse(source.config || "{}");
-      let filePath = config.filePath || config.path;
-      if (filePath) {
+      const config = readConfig(source.config);
+      const configuredPath = config.filePath || config.path;
+      if (typeof configuredPath === "string") {
+        let filePath = configuredPath;
         // If the path is a directory, resolve to CLAUDE.md inside it
         try {
-          if (fs.statSync(filePath).isDirectory()) {
+          if (isDirectory(filePath)) {
             filePath = path.join(filePath, "CLAUDE.md");
           }
         } catch {
@@ -78,14 +91,27 @@ export async function propagateToAllPlatforms(): Promise<PropagationResult> {
     }
   }
 
-  // Poke — push via API
-  const pokeApiKey = process.env.POKE_API_KEY;
-  if (pokeApiKey) {
+  // Poke — push via API. Prefer configured Poke sources, fall back to env.
+  const pokeSources = sources.filter((s) => s.type === "poke");
+  const pokeTargets = pokeSources
+    .map((source) => {
+      const apiKey = readConfig(source.config).apiKey;
+      return typeof apiKey === "string" && apiKey.length > 0
+        ? { name: source.name, apiKey }
+        : null;
+    })
+    .filter((target): target is { name: string; apiKey: string } => target !== null);
+
+  if (pokeTargets.length === 0 && process.env.POKE_API_KEY) {
+    pokeTargets.push({ name: "Poke", apiKey: process.env.POKE_API_KEY });
+  }
+
+  for (const target of pokeTargets) {
     try {
-      const result = await pushToPoke(memories, pokeApiKey);
+      const result = await pushToPoke(memories, target.apiKey);
       results.destinations.push({
         type: "poke",
-        name: "Poke",
+        name: target.name,
         success: result.success,
         error: result.error,
       });
@@ -102,7 +128,7 @@ export async function propagateToAllPlatforms(): Promise<PropagationResult> {
       const msg = error instanceof Error ? error.message : String(error);
       results.destinations.push({
         type: "poke",
-        name: "Poke",
+        name: target.name,
         success: false,
         error: msg,
       });

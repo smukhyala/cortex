@@ -79,7 +79,7 @@ const definition: ConnectorDefinition = {
   type: "gmail",
   sourceService: "standalone",
   description:
-    "Scan sent and starred emails for context about projects, contacts, and communication patterns.",
+    "Preview connector. Gmail scanning is not implemented yet.",
   configSchema: Object.fromEntries(
     GMAIL_CONFIG_FIELDS.map((f) => [f.key, { type: f.type, required: f.required }])
   ),

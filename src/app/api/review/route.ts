@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { propagateToAllPlatforms } from "@/services/propagate";
 
 export async function GET() {
   const items = await prisma.reviewItem.findMany({
@@ -46,6 +47,8 @@ export async function POST(req: NextRequest) {
         summary: `Batch approved ${pending.length} memories`,
       },
     });
+
+    propagateToAllPlatforms().catch(console.error);
 
     return NextResponse.json({ approved: pending.length });
   }

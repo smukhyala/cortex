@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MemoryCategorySchema, TemporalitySchema } from "./memory";
+import { MEMORY_CATEGORIES, TemporalitySchema } from "./memory";
 import { SourceTypeSchema, SyncTriggerSchema } from "./source";
 import { NormalizedConversationSchema } from "./conversation";
 
@@ -23,18 +23,28 @@ export type IngestOutput = z.infer<typeof IngestOutputSchema>;
 
 // ─── Agent 2: Extract + Classify Output ─────────────────────────────────────
 
-export const ExtractedMemorySchema = z.object({
-  content: z.string(),
-  subject: z.string().default("user"),
-  category: MemoryCategorySchema,
-  confidence: z.number().min(0).max(1),
-  verbatimQuote: z.string(),
-  temporality: TemporalitySchema,
-  sensitive: z.boolean(),
-  isCorrection: z.boolean(),
-  sourceDate: z.coerce.date().nullable().optional(),
-});
-export type ExtractedMemory = z.infer<typeof ExtractedMemorySchema>;
+export function createExtractedMemorySchema(
+  categorySlugs: readonly string[] = MEMORY_CATEGORIES
+) {
+  const slugs = categorySlugs.length > 0 ? categorySlugs : MEMORY_CATEGORIES;
+  const [first, ...rest] = slugs;
+
+  return z.object({
+    content: z.string(),
+    subject: z.string().default("user"),
+    category: z.enum([first, ...rest] as [string, ...string[]]),
+    confidence: z.number().min(0).max(1),
+    verbatimQuote: z.string(),
+    temporality: TemporalitySchema,
+    sensitive: z.boolean(),
+    isCorrection: z.boolean(),
+    sourceDate: z.coerce.date().nullable().optional(),
+  });
+}
+
+export const ExtractedMemorySchema = createExtractedMemorySchema(MEMORY_CATEGORIES);
+export type ExtractedMemory =
+  Omit<z.infer<typeof ExtractedMemorySchema>, "category"> & { category: string };
 
 export const ExtractionOutputSchema = z.object({
   memories: z.array(ExtractedMemorySchema),

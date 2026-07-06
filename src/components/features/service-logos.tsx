@@ -1,5 +1,3 @@
-import { type SVGProps } from "react";
-
 interface LogoProps {
   size?: number;
   className?: string;

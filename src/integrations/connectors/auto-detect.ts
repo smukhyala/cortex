@@ -1,6 +1,6 @@
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
-import { resolve, join } from "path";
+import { join } from "path";
 import { homedir } from "os";
 
 // ─── Auto-Detect Integrations ──────────────────────────────────────────────

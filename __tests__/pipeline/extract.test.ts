@@ -3,7 +3,6 @@ import { extractMemories } from "@/pipeline/extract";
 import { ExtractedMemorySchema } from "@/contracts/pipeline";
 import { MEMORY_CATEGORIES } from "@/contracts/memory";
 import type { NormalizedConversation } from "@/contracts/conversation";
-import { z } from "zod";
 
 const hasApiKey = !!process.env.ANTHROPIC_API_KEY;
 

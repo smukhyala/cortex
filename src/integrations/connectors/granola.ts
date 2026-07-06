@@ -1,6 +1,4 @@
 import { createHash } from "crypto";
-import { readdir, readFile, stat } from "fs/promises";
-import { join, extname, basename } from "path";
 import type { Connector, ConnectorDefinition, ConfigField, ScanResult, ScannedItem } from "./types";
 
 // ─── Granola Connector ──────────────────────────────────────────────────────
@@ -75,7 +73,7 @@ function extractTitle(content: string, filename: string): string {
   if (h1Match) return h1Match[1].trim();
 
   // Strip extension and clean up date prefixes like "2024-06-15 - "
-  const name = basename(filename, extname(filename));
+  const name = filename.replace(/\.[^.]+$/, "");
   const cleaned = name.replace(/^\d{4}-\d{2}-\d{2}\s*[-—]\s*/, "");
   return cleaned || name;
 }
@@ -137,6 +135,7 @@ export const granolaConnector: Connector = {
   },
 
   async testConnection(config) {
+    const { readdir, stat } = await import("fs/promises");
     const dir = expandHome(config.directoryPath as string);
     try {
       const info = await stat(dir);
@@ -151,6 +150,7 @@ export const granolaConnector: Connector = {
   },
 
   async scan(config): Promise<ScanResult> {
+    const { readdir, readFile, stat } = await import("fs/promises");
     const dir = expandHome(config.directoryPath as string);
     const lookbackDays = (config.lookbackDays as number) || 30;
     const cutoffDate = new Date();
@@ -165,7 +165,7 @@ export const granolaConnector: Connector = {
 
       for (const filename of mdFiles) {
         try {
-          const filePath = join(dir, filename);
+          const filePath = joinPath(dir, filename);
           const fileStat = await stat(filePath);
 
           // Skip files outside the lookback window
@@ -215,9 +215,19 @@ export const granolaConnector: Connector = {
 function expandHome(filepath: string): string {
   if (filepath.startsWith("~/")) {
     const home = process.env.HOME || process.env.USERPROFILE || "/";
-    return join(home, filepath.slice(2));
+    return joinPath(home, filepath.slice(2));
   }
   return filepath;
+}
+
+function joinPath(...parts: string[]): string {
+  return parts
+    .map((part, index) => {
+      const trimmed = index === 0 ? part.replace(/\/+$/, "") : part.replace(/^\/+|\/+$/g, "");
+      return trimmed;
+    })
+    .filter(Boolean)
+    .join("/");
 }
 
 export { parseGranolaSections, extractTitle, extractDateFromFilename };
