@@ -4,6 +4,7 @@ import { createHash } from "crypto";
 import path from "path";
 import { prisma } from "@/lib/db";
 import { runPipeline } from "@/pipeline/run";
+import { SOURCE_TYPE_DISPLAY } from "@/contracts/source";
 import type { SourceType, SyncTrigger } from "@/contracts/source";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "data/uploads");
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest) {
       source = await prisma.source.create({
         data: {
           type: sourceType,
-          name: sourceName || `${sourceType} upload`,
+          name: sourceName || `${SOURCE_TYPE_DISPLAY[sourceType] || sourceType} Export - ${new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" })}`,
           config: JSON.stringify({ filePath }),
           lastFileHash: fileHash,
         },

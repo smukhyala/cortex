@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
-import { TopNav } from "@/components/layout/top-nav";
+import { AppShell } from "@/components/layout/app-shell";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ScrollAnimations } from "@/components/layout/scroll-animations";
@@ -43,10 +43,7 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         <TooltipProvider>
-          <TopNav />
-          <main className="max-w-[1200px] mx-auto px-6 lg:px-10 py-6">
-            {children}
-          </main>
+          <AppShell>{children}</AppShell>
           <ScrollAnimations />
           <Toaster />
         </TooltipProvider>

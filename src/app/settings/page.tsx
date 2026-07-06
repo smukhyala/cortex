@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Trash2, FolderOpen, CheckCircle, XCircle, Zap, Server, RefreshCw, User, HardDrive, Loader2, Mail, FileText, StickyNote, MessageSquare, Plug, Settings2, Unplug, ArrowLeft, Scan, Sparkles, ExternalLink } from "lucide-react";
+import { Plus, Trash2, FolderOpen, CheckCircle, XCircle, Zap, Server, RefreshCw, User, HardDrive, Loader2, Mail, FileText, StickyNote, MessageSquare, Plug, Settings2, Unplug, ArrowLeft, Scan, Sparkles, ExternalLink, Pencil, Check, X } from "lucide-react";
 import { FileUpload } from "@/components/features/file-upload";
+import { SOURCE_TYPE_DISPLAY } from "@/contracts/source";
 
 interface Source {
   id: string;
@@ -14,6 +15,7 @@ interface Source {
   status: string;
   config: string;
   lastSyncAt: string | null;
+  accountLabel?: string;
   _count: { memories: number };
 }
 
@@ -125,6 +127,8 @@ export default function SettingsPage() {
   const [detectedIntegrations, setDetectedIntegrations] = useState<DetectedIntegrationData[]>([]);
   const [detecting, setDetecting] = useState(false);
   const [hasDetected, setHasDetected] = useState(false);
+  const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
+  const [editingLabelValue, setEditingLabelValue] = useState("");
 
   useEffect(() => {
     fetchSources();
@@ -341,6 +345,25 @@ export default function SettingsPage() {
   async function handleDeleteSource(id: string) {
     setSources((prev) => prev.filter((s) => s.id !== id));
     toast.success("Source removed");
+  }
+
+  async function handleSaveAccountLabel(id: string) {
+    try {
+      const res = await fetch("/api/sources", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, accountLabel: editingLabelValue || null }),
+      });
+      if (res.ok) {
+        toast.success("Account label updated");
+        setEditingLabelId(null);
+        fetchSources();
+      } else {
+        toast.error("Failed to update label");
+      }
+    } catch {
+      toast.error("Failed to update label");
+    }
   }
 
   async function handleWriteBack(filePath: string) {
@@ -637,7 +660,7 @@ export default function SettingsPage() {
                 <div>
                   <p className="text-sm font-medium tracking-tight">{account.name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5 font-mono">
-                    {account.path || account.type.replace("_", " ")}
+                    {account.path || SOURCE_TYPE_DISPLAY[account.type] || account.type}
                   </p>
                   <div className="flex items-center gap-3 mt-1">
                     {account.exists ? (
@@ -706,15 +729,58 @@ export default function SettingsPage() {
         <div className="maze-card divide-y divide-border">
           {sources.map((source) => {
             const config = JSON.parse(source.config || "{}");
+            const displayType = SOURCE_TYPE_DISPLAY[source.type] || source.type;
+            const isEditingLabel = editingLabelId === source.id;
             return (
               <div key={source.id} className="flex items-center justify-between p-5">
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium tracking-tight">{source.name}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {source.type.replace("_", " ")}
-                    {config.path ? ` — ${config.path}` : ""}
-                    {config.filePath ? ` — ${config.filePath}` : ""}
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="text-xs text-muted-foreground">
+                      {displayType}
+                      {source.accountLabel ? ` (${source.accountLabel})` : ""}
+                      {config.path ? ` — ${config.path}` : ""}
+                      {config.filePath ? ` — ${config.filePath}` : ""}
+                    </p>
+                    {isEditingLabel ? (
+                      <span className="inline-flex items-center gap-1 ml-1">
+                        <Input
+                          className="h-6 w-40 text-xs px-1.5"
+                          placeholder="e.g. personal@gmail.com"
+                          value={editingLabelValue}
+                          onChange={(e) => setEditingLabelValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSaveAccountLabel(source.id);
+                            if (e.key === "Escape") setEditingLabelId(null);
+                          }}
+                          autoFocus
+                        />
+                        <button
+                          className="maze-btn maze-btn-ghost h-6 w-6 p-0 min-h-0 rounded"
+                          onClick={() => handleSaveAccountLabel(source.id)}
+                        >
+                          <Check className="h-3 w-3 text-lime" />
+                        </button>
+                        <button
+                          className="maze-btn maze-btn-ghost h-6 w-6 p-0 min-h-0 rounded"
+                          onClick={() => setEditingLabelId(null)}
+                        >
+                          <X className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        className="maze-btn maze-btn-ghost h-5 w-5 p-0 min-h-0 rounded"
+                        onClick={() => {
+                          setEditingLabelId(source.id);
+                          setEditingLabelValue(source.accountLabel || "");
+                        }}
+                        title="Edit account label"
+                      >
+                        <Pencil className="h-3 w-3 text-muted-foreground" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-1.5">
                   {source.type === "claude_code" && config.path && (

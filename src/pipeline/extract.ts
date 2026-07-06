@@ -15,7 +15,15 @@ const ExtractionResponseSchema = z.object({
 
 // ─── System Prompt ──────────────────────────────────────────────────────────
 
-const EXTRACTION_SYSTEM_PROMPT = `You are a memory extraction agent for Cortex, a personal context synchronization tool.
+function buildExtractionPrompt(categoryOverrides?: { slug: string; label: string }[]): string {
+  const categoryList = categoryOverrides
+    ? categoryOverrides.map(c => `- \`${c.slug}\`: ${c.label}`).join("\n")
+    : MEMORY_CATEGORIES.map((c) => `- \`${c}\``).join("\n");
+
+  return EXTRACTION_SYSTEM_PROMPT_TEMPLATE.replace("{{CATEGORY_LIST}}", categoryList);
+}
+
+const EXTRACTION_SYSTEM_PROMPT_TEMPLATE = `You are a memory extraction agent for Cortex, a personal context synchronization tool.
 
 Your job is to extract **atomic, durable facts** from conversations that would be useful for an AI assistant to know about the user in future conversations.
 
@@ -36,10 +44,32 @@ Extract facts that are:
 - Implementation details of code being discussed (unless it reveals a preference or project fact)
 - Anything the user said about a one-time task with no lasting relevance
 
+## Technical Detail Filter (IMPORTANT)
+
+Do NOT extract any of the following — these are implementation details, not personal facts:
+
+- Programming language or runtime versions (e.g., "Using Node 18", "On Python 3.11")
+- Specific package versions or dependency choices (e.g., "Using React 18.2", "Installed prisma@5.0")
+- Framework-specific configuration (e.g., "Using App Router", "Configured ESLint with flat config")
+- Build tool or bundler details (e.g., "Using Vite", "Switched to Turbopack")
+- Database schema specifics or migration details
+- API endpoint designs or route structures
+- Specific error messages or stack traces
+- One-time debugging steps or workarounds
+- CI/CD pipeline configuration
+- Environment setup details (e.g., "Set up Docker", "Using nvm")
+
+EXCEPTION: Extract if the user frames something as a PREFERENCE or PHILOSOPHY:
+- "I always use Vite because I hate slow builds" → Extract the PREFERENCE ("User prefers fast build tools and dislikes slow builds"), NOT the tool choice
+- "I'm standardizing on PostgreSQL for all my projects" → Extract as a preference
+- "I refuse to use ORMs" → Extract as a preference
+
+The bar for extraction should be: "Would a NEW AI assistant knowing this fact provide noticeably better help to the user in a DIFFERENT conversation about a DIFFERENT topic?" If the answer is no, do not extract it.
+
 ## Categories
 
 Classify each memory into exactly one of these categories:
-${MEMORY_CATEGORIES.map((c) => `- \`${c}\``).join("\n")}
+{{CATEGORY_LIST}}
 
 ## Temporality
 
@@ -80,12 +110,17 @@ Bad extractions (do NOT produce these):
 - "User asked about TypeScript interfaces" (this is a question, not a fact about the user)
 - "User is debugging a React component" (ephemeral task context)
 - "AI suggested using Prisma" (fact about the AI, not the user)
-- "User and AI discussed database design" (summary of conversation, not a fact)`;
+- "User and AI discussed database design" (summary of conversation, not a fact)
+- "User is using Node.js v20" (version detail, not durable)
+- "User installed @anthropic-ai/sdk@0.30.1" (package version, ephemeral)
+- "User configured Next.js with App Router" (framework config, not a personal fact)
+- "User set up ESLint with flat config" (tooling detail, not cross-context useful)`;
 
 // ─── Extract Memories from a Single Conversation ────────────────────────────
 
 export async function extractMemories(
-  conversation: NormalizedConversation
+  conversation: NormalizedConversation,
+  categoryOverrides?: { slug: string; label: string }[]
 ): Promise<{ memories: ExtractedMemory[]; tokens: { input: number; output: number } }> {
   // Build the conversation text — only include meaningful messages
   const conversationText = conversation.messages
@@ -112,7 +147,7 @@ ${conversationText}
 Extract atomic memories. If there are no extractable facts about the user, return an empty memories array.`;
 
   const result = await structuredCall({
-    system: EXTRACTION_SYSTEM_PROMPT,
+    system: buildExtractionPrompt(categoryOverrides),
     user: userPrompt,
     schema: ExtractionResponseSchema,
     schemaName: "extract_memories",
@@ -139,7 +174,8 @@ export interface BatchExtractionResult {
 }
 
 export async function batchExtractMemories(
-  conversations: NormalizedConversation[]
+  conversations: NormalizedConversation[],
+  categoryOverrides?: { slug: string; label: string }[]
 ): Promise<BatchExtractionResult> {
   const results: BatchExtractionResult["results"] = [];
   let totalInput = 0;
@@ -148,7 +184,7 @@ export async function batchExtractMemories(
 
   for (const conv of conversations) {
     try {
-      const { memories, tokens } = await extractMemories(conv);
+      const { memories, tokens } = await extractMemories(conv, categoryOverrides);
       totalInput += tokens.input;
       totalOutput += tokens.output;
 

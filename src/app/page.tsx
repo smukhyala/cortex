@@ -18,6 +18,7 @@ import {
   Upload,
 } from "lucide-react";
 import { ServiceLogo } from "@/components/features/service-logos";
+import { SOURCE_TYPE_DISPLAY } from "@/contracts/source";
 
 interface Source {
   id: string;
@@ -25,6 +26,7 @@ interface Source {
   name: string;
   status: string;
   lastSyncAt: string | null;
+  accountLabel?: string;
   _count: { memories: number };
 }
 
@@ -214,14 +216,19 @@ export default function DashboardPage() {
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {sources.map((source, i) => (
+            {sources.map((source, i) => {
+              const displayType = SOURCE_TYPE_DISPLAY[source.type] || source.type;
+              return (
               <div key={source.id} className="maze-card p-5 flex items-center justify-between" data-animate={i + 1}>
                 <div className="flex items-center gap-3.5 min-w-0">
                   <SourceIcon type={source.type} />
                   <div className="min-w-0">
                     <p className="text-sm font-medium tracking-tight truncate">{source.name}</p>
                     <div className="flex items-center gap-2.5 mt-1">
-                      <span className="text-[11px] text-muted-foreground font-medium">{source._count.memories} memories</span>
+                      <span className="text-[11px] text-muted-foreground font-medium">
+                        {displayType}{source.accountLabel ? ` (${source.accountLabel})` : ""}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">{source._count.memories} memories</span>
                       {source.lastSyncAt && (
                         <span className="text-[11px] text-muted-foreground flex items-center gap-1">
                           <Clock className="h-3 w-3" />
@@ -240,7 +247,8 @@ export default function DashboardPage() {
                   {syncing === source.id ? "Syncing" : "Sync"}
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}

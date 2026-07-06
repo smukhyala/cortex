@@ -64,7 +64,32 @@ export async function GET(
           { status: 400 }
         );
       }
-      const result = await pushToPoke(exportable, apiKey);
+      const dryRun = req.nextUrl.searchParams.get("dryRun") === "true";
+      const startTime = Date.now();
+      const result = await pushToPoke(exportable, apiKey, { dryRun });
+
+      if (dryRun) {
+        await prisma.exportLog.create({
+          data: {
+            destination: "poke",
+            status: "dry_run",
+            memoriesCount: exportable.length,
+            durationMs: Date.now() - startTime,
+          },
+        });
+        return NextResponse.json(result);
+      }
+
+      await prisma.exportLog.create({
+        data: {
+          destination: "poke",
+          status: result.success ? "success" : "failed",
+          memoriesCount: exportable.length,
+          errorMessage: result.error || null,
+          durationMs: Date.now() - startTime,
+        },
+      });
+
       if (result.success) {
         await prisma.activityLog.create({
           data: {

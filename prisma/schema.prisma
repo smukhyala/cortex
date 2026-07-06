@@ -11,6 +11,7 @@ model Source {
   id           String    @id @default(cuid())
   type         String    // chatgpt_export | claude_code | claude_export | poke
   name         String
+  accountLabel String?   // e.g., "personal@email.com" or "Work"
   status       String    @default("active") // active | error
   config       String    @default("{}") // JSON: paths, settings
   lastSyncAt   DateTime?
@@ -130,4 +131,29 @@ model ActivityLog {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+}
+
+model ExportLog {
+  id            String   @id @default(cuid())
+  destination   String   // poke | claude_code | chatgpt | json
+  status        String   // success | failed | dry_run
+  memoriesCount Int
+  errorMessage  String?
+  details       String   @default("{}")
+  durationMs    Int?
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([destination])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  label     String
+  color     String   @default("bg-neutral-100 text-neutral-600")
+  sortOrder Int      @default(0)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

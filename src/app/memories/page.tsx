@@ -5,8 +5,6 @@ import { toast } from "sonner";
 import { Search, Download, Archive, Brain, Pencil, Sparkles, GitMerge, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { CATEGORY_LABELS, MEMORY_CATEGORIES } from "@/contracts/memory";
-
 interface Memory {
   id: string;
   content: string;
@@ -20,18 +18,11 @@ interface Memory {
   conversation: { title: string; externalId: string } | null;
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  identity: "bg-blue-50 text-blue-700",
-  education_career: "bg-purple-50 text-purple-700",
-  projects: "bg-emerald-50 text-emerald-700",
-  research: "bg-yellow-50 text-yellow-700",
-  preferences: "bg-orange-50 text-orange-700",
-  goals: "bg-pink-50 text-pink-700",
-  relationships: "bg-indigo-50 text-indigo-700",
-  writing_voice: "bg-cyan-50 text-cyan-700",
-  workflows: "bg-teal-50 text-teal-700",
-  temporary: "bg-neutral-100 text-neutral-600",
-};
+interface CategoryDef {
+  slug: string;
+  label: string;
+  color: string;
+}
 
 interface DedupGroup {
   canonical: string;
@@ -41,12 +32,22 @@ interface DedupGroup {
 
 export default function MemoriesPage() {
   const [memories, setMemories] = useState<Memory[]>([]);
+  const [categories, setCategories] = useState<CategoryDef[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [editDialog, setEditDialog] = useState<{ memory: Memory; content: string } | null>(null);
   const [dedupResult, setDedupResult] = useState<{ groups: DedupGroup[]; uniqueCount: number; duplicateCount: number } | null>(null);
   const [dedupRunning, setDedupRunning] = useState(false);
+  const [quickStatement, setQuickStatement] = useState("");
+  const [quickLoading, setQuickLoading] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/categories").then(r => r.json()).then(setCategories);
+  }, []);
+
+  const categoryLabels: Record<string, string> = Object.fromEntries(categories.map(c => [c.slug, c.label]));
+  const categoryColors: Record<string, string> = Object.fromEntries(categories.map(c => [c.slug, c.color]));
 
   const fetchMemories = useCallback(async () => {
     const params = new URLSearchParams({ status: "active" });
@@ -140,6 +141,31 @@ export default function MemoriesPage() {
       fetchMemories();
     } catch {
       toast.error("Failed to apply dedup");
+    }
+  }
+
+  async function handleQuickStatement() {
+    if (!quickStatement.trim()) return;
+    setQuickLoading(true);
+    try {
+      const res = await fetch("/api/memories/quick", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ statement: quickStatement }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const destCount = data.propagation?.destinations?.filter((d: any) => d.success).length || 0;
+        toast.success(`${data.action === "create" ? "Created" : data.action === "update" ? "Updated" : "Deleted"}: ${data.content}. Propagated to ${destCount} platform(s).`);
+        setQuickStatement("");
+        fetchMemories();
+      } else {
+        toast.error(data.error || "Failed to process statement");
+      }
+    } catch {
+      toast.error("Failed to process statement");
+    } finally {
+      setQuickLoading(false);
     }
   }
 
@@ -249,6 +275,32 @@ export default function MemoriesPage() {
         </div>
       )}
 
+      {/* Quick Statement */}
+      <div className="bg-lime-50/50 border border-lime-200 rounded-lg p-4 mb-6">
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles size={16} className="text-lime-600" />
+          <span className="text-sm font-medium text-lime-800">Quick Statement</span>
+        </div>
+        <p className="text-xs text-lime-600 mb-3">Type a fact about yourself. It will be saved and propagated to all connected platforms.</p>
+        <div className="flex gap-2">
+          <Input
+            value={quickStatement}
+            onChange={(e) => setQuickStatement(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleQuickStatement()}
+            placeholder='e.g., "My age is 25" or "I now work at Acme Corp"'
+            disabled={quickLoading}
+            className="flex-1"
+          />
+          <button
+            onClick={handleQuickStatement}
+            disabled={quickLoading || !quickStatement.trim()}
+            className="px-4 py-2 bg-lime-600 text-white rounded-md hover:bg-lime-700 disabled:opacity-50 text-sm font-medium"
+          >
+            {quickLoading ? "Processing..." : "Apply"}
+          </button>
+        </div>
+      </div>
+
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -273,17 +325,17 @@ export default function MemoriesPage() {
             All
             <span className="float-right text-[11px] text-muted-foreground">{memories.length}</span>
           </button>
-          {MEMORY_CATEGORIES.map((cat) => {
-            const count = categoryCounts.get(cat) || 0;
+          {categories.map((cat) => {
+            const count = categoryCounts.get(cat.slug) || 0;
             return (
               <button
-                key={cat}
+                key={cat.slug}
                 className={`w-full text-left px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
-                  selectedCategory === cat ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  selectedCategory === cat.slug ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 }`}
-                onClick={() => setSelectedCategory(cat)}
+                onClick={() => setSelectedCategory(cat.slug)}
               >
-                {CATEGORY_LABELS[cat]}
+                {cat.label}
                 {count > 0 && <span className="float-right text-[11px] text-muted-foreground">{count}</span>}
               </button>
             );
@@ -313,7 +365,7 @@ export default function MemoriesPage() {
                   <div className="min-w-0 flex-1">
                     <p className="text-[14px] leading-relaxed">{memory.content}</p>
                     <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-                      <span className={`maze-tag ${CATEGORY_COLORS[memory.category] || ""}`}>
+                      <span className={`maze-tag ${categoryColors[memory.category] || ""}`}>
                         {memory.category.replace("_", " ")}
                       </span>
                       <span className="text-[11px] text-muted-foreground">

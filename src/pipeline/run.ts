@@ -107,7 +107,10 @@ export async function runPipeline(input: {
     const extraction = await batchExtractMemories(conversations);
 
     // Flatten all extracted memories
-    const allMemories = extraction.results.flatMap((r) => r.memories);
+    const allMemories = extraction.results.flatMap((r) => {
+      const conv = conversations.find((c) => c.externalId === r.conversationId);
+      return r.memories.map((mem) => ({ ...mem, sourceDate: conv?.sourceDate ?? null }));
+    });
 
     // ── Agent 3: Deduplicate + Conflict Detect ───────────────────────────
     const dedup = await deduplicateMemories(allMemories);

@@ -6,6 +6,11 @@ import type {
 } from "@/contracts/pipeline";
 import { prisma } from "@/lib/db";
 
+function formatDate(date: Date | null | undefined): string {
+  if (!date) return "date unknown";
+  return date.toISOString().split("T")[0];
+}
+
 // ─── LLM Comparison Schema ─────────────────────────────────────────────────
 
 const ComparisonResultSchema = z.object({
@@ -22,21 +27,36 @@ const ComparisonResultSchema = z.object({
 
 const COMPARISON_SYSTEM_PROMPT = `You are a memory deduplication agent. Given two memories about the same topic, determine their relationship.
 
-Respond with exactly one relationship type:
-- "duplicate": They express the same fact (even if worded differently)
-- "refinement": The new memory adds detail to the existing one without contradicting it
-- "contradiction": They directly disagree (e.g., "prefers Python" vs "prefers TypeScript")
-- "supersede": The new memory is an explicit update/correction of the old one
-- "unrelated": They are about different topics despite being in the same category
+## Relationship Types
 
-Provide a one-sentence reasoning.
+- "duplicate": They express the same fact, even if worded differently or at different levels of detail. A verbose version and a concise version of the same fact are duplicates.
+- "refinement": The new memory adds genuinely NEW information to the existing one without contradicting it. Example: "User works at Acme" -> "User works at Acme as a senior engineer" is refinement (adds role). But "User prefers TypeScript" -> "User prefers TypeScript for its static typing" is NOT refinement — it's a duplicate with added rationale for the same preference.
+- "contradiction": They make MUTUALLY EXCLUSIVE claims. Both cannot be true simultaneously. Example: "User prefers Python" vs "User prefers TypeScript" — a person can only have one primary preference. This should be rare.
+- "supersede": The new memory replaces the old one because circumstances changed. Example: "User works at Company A" -> "User works at Company B". The old fact was true at one time but is no longer. When timestamps show the new memory is significantly more recent AND the facts conflict, default to "supersede" over "contradiction".
+- "unrelated": They are about different topics despite being in the same category.
 
-If the relationship is "refinement" or "supersede", provide a mergedContent that combines both into a single accurate memory. For "supersede", the merged content should reflect the newer information.`;
+## Important Distinctions
+
+- A concise statement vs a verbose version of THE SAME fact = "duplicate" (keep the more complete version as mergedContent)
+- Adding supporting reasons or context to the same conclusion = "duplicate"
+- Adding a genuinely new dimension (role, location, timeline) = "refinement"
+- Facts that CANNOT both be true = "contradiction" (only if dates don't resolve it)
+- Facts that CANNOT both be true AND the new one is more recent = "supersede"
+
+## Timestamps
+
+You may be given timestamps for both memories. If the new memory is more recent than the existing one and they conflict, prefer "supersede" over "contradiction". Life facts change over time — a job, city, or preference stated more recently reflects the current truth.
+
+## Output
+
+Provide a one-sentence reasoning explaining your choice.
+
+If the relationship is "duplicate", "refinement", or "supersede", provide a mergedContent that captures the single best version of the fact. For "duplicate", pick the more complete wording. For "refinement", combine both. For "supersede", reflect the newer information.`;
 
 // ─── Comparison Function ────────────────────────────────────────────────────
 
 export async function compareMemories(
-  existing: { id: string; content: string },
+  existing: { id: string; content: string; createdAt: Date },
   newMemory: ExtractedMemory
 ): Promise<{
   relationship: "duplicate" | "refinement" | "contradiction" | "supersede" | "unrelated";
@@ -46,8 +66,8 @@ export async function compareMemories(
 }> {
   const result = await structuredCall({
     system: COMPARISON_SYSTEM_PROMPT,
-    user: `EXISTING MEMORY: "${existing.content}"
-NEW MEMORY: "${newMemory.content}"
+    user: `EXISTING MEMORY (${formatDate(existing.createdAt)}): "${existing.content}"
+NEW MEMORY (${formatDate(newMemory.sourceDate)}): "${newMemory.content}"
 
 What is the relationship between these two memories?`,
     schema: ComparisonResultSchema,
@@ -56,6 +76,23 @@ What is the relationship between these two memories?`,
     maxTokens: 512,
     temperature: 0,
   });
+
+  // Recency guardrail: if LLM says contradiction but new memory is significantly newer, override to supersede
+  if (
+    result.data.relationship === "contradiction" &&
+    newMemory.sourceDate &&
+    existing.createdAt
+  ) {
+    const daysDiff = (new Date(newMemory.sourceDate).getTime() - new Date(existing.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysDiff > 30) {
+      return {
+        relationship: "supersede" as const,
+        reasoning: `${result.data.reasoning} (Auto-upgraded from contradiction to supersede: new memory is ${Math.round(daysDiff)} days more recent)`,
+        mergedContent: result.data.mergedContent ?? newMemory.content,
+        tokens: { input: result.inputTokens, output: result.outputTokens },
+      };
+    }
+  }
 
   return {
     relationship: result.data.relationship,
@@ -90,6 +127,7 @@ export async function deduplicateMemories(
         id: true,
         content: true,
         status: true,
+        createdAt: true,
       },
     });
 

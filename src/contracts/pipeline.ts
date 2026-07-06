@@ -32,6 +32,7 @@ export const ExtractedMemorySchema = z.object({
   temporality: TemporalitySchema,
   sensitive: z.boolean(),
   isCorrection: z.boolean(),
+  sourceDate: z.coerce.date().nullable().optional(),
 });
 export type ExtractedMemory = z.infer<typeof ExtractedMemorySchema>;
 

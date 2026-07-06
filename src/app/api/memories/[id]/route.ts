@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { propagateToAllPlatforms } from "@/services/propagate";
 
 export async function GET(
   req: NextRequest,
@@ -42,6 +43,9 @@ export async function PATCH(
     },
   });
 
+  // Propagate changes to all platforms
+  propagateToAllPlatforms().catch(console.error);
+
   return NextResponse.json(memory);
 }
 
@@ -54,5 +58,9 @@ export async function DELETE(
     where: { id },
     data: { status: "archived", archivedAt: new Date(), archivedReason: "Deleted by user" },
   });
+
+  // Propagate changes to all platforms
+  propagateToAllPlatforms().catch(console.error);
+
   return NextResponse.json({ success: true });
 }

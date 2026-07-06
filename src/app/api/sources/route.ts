@@ -11,7 +11,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { type, name, config } = body;
+  const { type, name, config, accountLabel } = body;
 
   if (!type || !name) {
     return NextResponse.json(
@@ -25,8 +25,28 @@ export async function POST(req: NextRequest) {
       type,
       name,
       config: JSON.stringify(config || {}),
+      ...(accountLabel ? { accountLabel } : {}),
     },
   });
 
   return NextResponse.json(source, { status: 201 });
+}
+
+export async function PATCH(req: NextRequest) {
+  const body = await req.json();
+  const { id, accountLabel } = body;
+
+  if (!id) {
+    return NextResponse.json(
+      { error: "id is required" },
+      { status: 400 }
+    );
+  }
+
+  const source = await prisma.source.update({
+    where: { id },
+    data: { accountLabel: accountLabel ?? null },
+  });
+
+  return NextResponse.json(source);
 }

@@ -9,7 +9,7 @@ interface MemoryForExport {
 /**
  * Format memories as a context message for the Poke inbound API.
  */
-function formatPokeContext(memories: MemoryForExport[]): string {
+export function formatPokeContext(memories: MemoryForExport[]): string {
   const filtered = memories.filter((m) => !m.sensitive);
 
   const lines = ["Here is my current personal context:"];
@@ -37,26 +37,33 @@ function formatPokeContext(memories: MemoryForExport[]): string {
  */
 export async function pushToPoke(
   memories: MemoryForExport[],
-  apiKey: string
-): Promise<{ success: boolean; message?: string; error?: string }> {
+  apiKey: string,
+  options: { dryRun?: boolean; fetchFn?: typeof fetch } = {}
+): Promise<{ success: boolean; message?: string; error?: string; payload?: object }> {
+  const { dryRun = false, fetchFn = fetch } = options;
   const context = formatPokeContext(memories);
+  const payload = {
+    message: context,
+    metadata: {
+      source: "cortex",
+      type: "context_sync",
+      memoryCount: memories.length,
+      timestamp: new Date().toISOString(),
+    },
+  };
+
+  if (dryRun) {
+    return { success: true, message: "Dry run — payload generated but not sent", payload };
+  }
 
   try {
-    const response = await fetch("https://poke.com/api/v1/inbound/api-message", {
+    const response = await fetchFn("https://poke.com/api/v1/inbound/api-message", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        message: context,
-        metadata: {
-          source: "cortex",
-          type: "context_sync",
-          memoryCount: memories.length,
-          timestamp: new Date().toISOString(),
-        },
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {

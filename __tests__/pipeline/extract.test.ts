@@ -149,6 +149,29 @@ describe.skipIf(!hasApiKey)("extractMemories (integration)", () => {
     const correction = memories.find((m) => m.isCorrection);
     expect(correction).toBeDefined();
   }, 30000);
+
+  it("does NOT extract technical implementation details", async () => {
+    const conv = makeConversation([
+      {
+        role: "user",
+        content: "I'm using Node.js v20.11 with the @anthropic-ai/sdk@0.30.1 package. I set up ESLint with flat config and configured Next.js App Router. My name is Alex and I'm 25 years old.",
+      },
+      {
+        role: "assistant",
+        content: "Great setup! Nice to meet you Alex.",
+      },
+    ]);
+
+    const { memories } = await extractMemories(conv);
+
+    // Should extract the name and age but not the technical details
+    const contents = memories.map((m) => m.content.toLowerCase()).join(" ");
+    expect(contents).toMatch(/alex/);
+    expect(contents).not.toMatch(/node.*v?20/);
+    expect(contents).not.toMatch(/0\.30/);
+    expect(contents).not.toMatch(/flat config/i);
+    expect(contents).not.toMatch(/app router/i);
+  }, 30000);
 });
 
 // Unit tests that don't need the API
