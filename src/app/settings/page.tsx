@@ -4,9 +4,21 @@ import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Trash2, FolderOpen, CheckCircle, XCircle, Zap, Server, RefreshCw, User, HardDrive, Loader2, Mail, FileText, StickyNote, MessageSquare, Plug, Settings2, Unplug, ArrowLeft, Scan, Sparkles, ExternalLink, Pencil, Check, X } from "lucide-react";
+import { Plus, Trash2, FolderOpen, CheckCircle, XCircle, Zap, Server, RefreshCw, User, HardDrive, Loader2, Mail, FileText, StickyNote, MessageSquare, Plug, Settings2, Unplug, ArrowLeft, Scan, Sparkles, ExternalLink, Pencil, Check, X, AlertTriangle } from "lucide-react";
 import { FileUpload } from "@/components/features/file-upload";
 import { SOURCE_TYPE_DISPLAY } from "@/contracts/source";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+  AlertDialogMedia,
+} from "@/components/ui/alert-dialog";
 
 interface Source {
   id: string;
@@ -129,6 +141,7 @@ export default function SettingsPage() {
   const [hasDetected, setHasDetected] = useState(false);
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
   const [editingLabelValue, setEditingLabelValue] = useState("");
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     fetchSources();
@@ -378,6 +391,26 @@ export default function SettingsPage() {
       else toast.error(data.error || "Write-back failed");
     } catch {
       toast.error("Write-back failed");
+    }
+  }
+
+  async function handleResetAllMemories() {
+    setResetting(true);
+    try {
+      const res = await fetch("/api/memories/reset", { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Reset complete: ${data.archived} memories archived`);
+        fetchSources();
+        fetchAccounts();
+        fetchStatus();
+      } else {
+        toast.error(data.error || "Reset failed");
+      }
+    } catch {
+      toast.error("Reset failed");
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -849,12 +882,38 @@ export default function SettingsPage() {
             <div>
               <p className="text-sm font-medium tracking-tight">Reset All Memories</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Permanently delete all memories, reviews, and conflicts. Sources are preserved.
+                Archive all memories, reviews, and conflicts. Sources are preserved.
               </p>
             </div>
-            <button className="maze-btn bg-red-500 text-white h-8 text-xs" onClick={() => toast.info("Reset functionality coming soon")}>
-              Reset
-            </button>
+            <AlertDialog>
+              <AlertDialogTrigger
+                render={
+                  <button className="maze-btn bg-red-500 text-white h-8 text-xs" disabled={resetting}>
+                    {resetting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Reset"}
+                  </button>
+                }
+              />
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogMedia className="bg-red-500/10">
+                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                  </AlertDialogMedia>
+                  <AlertDialogTitle>Reset All Memories</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will archive all active and pending memories. Sources and configuration will be preserved. This action cannot be easily undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-red-500 text-white hover:bg-red-600"
+                    onClick={handleResetAllMemories}
+                  >
+                    Reset All Memories
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </section>

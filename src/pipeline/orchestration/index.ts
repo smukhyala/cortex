@@ -1,1 +1,1 @@
-export { runPipeline } from "./run";
+export { runPipeline } from "../run";

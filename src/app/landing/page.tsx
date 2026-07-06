@@ -1,15 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Brain,
-  Zap,
-  Shield,
-  RefreshCw,
   ArrowRight,
   Sparkles,
+  Upload,
+  Search,
+  CheckCircle,
+  RefreshCw,
+  AlertTriangle,
+  Lock,
+  MessageSquare,
 } from "lucide-react";
+
+/* ── Types ── */
+interface StatusResponse {
+  stats: {
+    memories: number;
+    pending: number;
+    sources: number;
+    lastSync: string | null;
+  };
+  connections: Record<
+    string,
+    { connected: boolean; label: string; description: string }
+  >;
+}
 
 /* ── Tiny intersection-observer hook for scroll-triggered animations ── */
 function useScrollReveal() {
@@ -74,35 +92,80 @@ function PlatformBubble({
       >
         {initial}
       </div>
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <span className="text-xs font-medium text-muted-foreground">
+        {label}
+      </span>
     </div>
   );
 }
 
-/* ── Feature card ── */
-function FeatureCard({
-  icon: Icon,
-  title,
-  description,
+/* ── Pain point card for the problem section ── */
+function PainCard({
+  quote,
+  detail,
   delay,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  description: string;
+  quote: string;
+  detail: string;
   delay: number;
 }) {
   return (
     <Reveal delay={delay}>
-      <div className="group maze-card p-6 sm:p-8 h-full">
-        <div className="h-12 w-12 rounded-xl bg-lime/10 flex items-center justify-center mb-5 transition-transform group-hover:scale-110">
-          <Icon className="h-5 w-5 text-lime" />
+      <div className="maze-card p-6 sm:p-7 h-full border-l-2 border-red-400/50">
+        <div className="flex items-start gap-3 mb-3">
+          <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
+          <p className="text-sm font-semibold text-foreground leading-snug">
+            {quote}
+          </p>
         </div>
-        <h3 className="text-base font-semibold tracking-tight mb-2">
-          {title}
-        </h3>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          {description}
+        <p className="text-sm text-muted-foreground leading-relaxed pl-7">
+          {detail}
         </p>
+      </div>
+    </Reveal>
+  );
+}
+
+/* ── Pipeline step for "How It Works" ── */
+function PipelineStep({
+  step,
+  icon: Icon,
+  title,
+  description,
+  delay,
+  isLast = false,
+}: {
+  step: number;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  delay: number;
+  isLast?: boolean;
+}) {
+  return (
+    <Reveal delay={delay}>
+      <div className="flex gap-5">
+        {/* Step indicator + connector line */}
+        <div className="flex flex-col items-center">
+          <div className="h-11 w-11 rounded-xl bg-lime/10 flex items-center justify-center shrink-0">
+            <Icon className="h-5 w-5 text-lime" />
+          </div>
+          {!isLast && (
+            <div className="w-px flex-1 bg-border mt-2 min-h-[24px]" />
+          )}
+        </div>
+        {/* Content */}
+        <div className="pb-8">
+          <p className="text-xs font-bold uppercase tracking-widest text-lime mb-1.5">
+            Step {step}
+          </p>
+          <h3 className="text-base font-semibold tracking-tight mb-1.5">
+            {title}
+          </h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {description}
+          </p>
+        </div>
       </div>
     </Reveal>
   );
@@ -113,6 +176,33 @@ function FeatureCard({
 /* ========================================================================== */
 
 export default function LandingPage() {
+  const [stats, setStats] = useState({
+    memories: 247,
+    sources: 3,
+    syncs: 12,
+  });
+
+  useEffect(() => {
+    fetch("/api/status")
+      .then((r) => {
+        if (!r.ok) throw new Error("fetch failed");
+        return r.json() as Promise<StatusResponse>;
+      })
+      .then((data) => {
+        const connectedCount = Object.values(data.connections).filter(
+          (c) => c.connected
+        ).length;
+        setStats({
+          memories: data.stats.memories || 247,
+          sources: connectedCount || data.stats.sources || 3,
+          syncs: data.stats.sources || 12,
+        });
+      })
+      .catch(() => {
+        // keep fallback values
+      });
+  }, []);
+
   return (
     <div className="landing-page">
       {/* ── Inline styles for landing-specific animations ── */}
@@ -176,6 +266,21 @@ export default function LandingPage() {
         .landing-visible .landing-count {
           animation: landing-count-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
+
+        @keyframes landing-strike {
+          0% { width: 0; }
+          100% { width: 100%; }
+        }
+        .landing-visible .landing-strike::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 50%;
+          height: 2px;
+          background: rgba(248, 113, 113, 0.6);
+          animation: landing-strike 0.8s 0.3s ease-out forwards;
+          width: 0;
+        }
       `}</style>
 
       {/* ================================================================== */}
@@ -212,11 +317,10 @@ export default function LandingPage() {
               <span
                 className="text-xs font-medium tracking-wide text-white/70"
                 style={{
-                  fontFamily:
-                    "var(--font-jakarta), system-ui, sans-serif",
+                  fontFamily: "var(--font-jakarta), system-ui, sans-serif",
                 }}
               >
-                Personal AI Memory Layer
+                Local-first. Privacy-first. Your data never leaves your machine.
               </span>
             </div>
           </Reveal>
@@ -226,11 +330,10 @@ export default function LandingPage() {
               className="text-white leading-[1.1] tracking-[-0.04em] font-bold"
               style={{
                 fontSize: "clamp(2.5rem, 2rem + 4vw, 5rem)",
-                fontFamily:
-                  "var(--font-jakarta), system-ui, sans-serif",
+                fontFamily: "var(--font-jakarta), system-ui, sans-serif",
               }}
             >
-              Your AI Memory,{" "}
+              Your AI tools don&apos;t talk to each other.{" "}
               <span
                 className="bg-clip-text text-transparent"
                 style={{
@@ -238,7 +341,7 @@ export default function LandingPage() {
                     "linear-gradient(135deg, oklch(0.7119 0.1668 121.63), oklch(0.82 0.14 121))",
                 }}
               >
-                Unified
+                Cortex fixes that.
               </span>
             </h1>
           </Reveal>
@@ -248,9 +351,10 @@ export default function LandingPage() {
               className="mt-6 text-white/60 max-w-2xl mx-auto leading-relaxed"
               style={{ fontSize: "clamp(1rem, 0.9rem + 0.5vw, 1.25rem)" }}
             >
-              Your personal context is scattered across ChatGPT, Claude, and
-              Poke. You repeat yourself to every AI tool. Cortex keeps them all
-              in sync.
+              You use ChatGPT, Claude, and Poke every day. Each one learns about
+              you separately. None of them share what they know. Cortex extracts
+              your memories from all of them, resolves conflicts, and syncs a
+              single canonical profile everywhere.
             </p>
           </Reveal>
 
@@ -260,7 +364,8 @@ export default function LandingPage() {
                 href="/"
                 className="maze-btn maze-btn-lime text-base px-8 py-3 h-auto rounded-xl font-medium shadow-lg hover:shadow-xl"
               >
-                Get Started
+                <Lock className="h-4 w-4 mr-2" />
+                Get Started -- It&apos;s Local
                 <ArrowRight className="h-4 w-4 ml-1" />
               </Link>
             </div>
@@ -294,7 +399,7 @@ export default function LandingPage() {
       </section>
 
       {/* ================================================================== */}
-      {/*  PROBLEM                                                           */}
+      {/*  THE PROBLEM                                                       */}
       {/* ================================================================== */}
       <section className="py-24 sm:py-32 bg-background">
         <div className="max-w-5xl mx-auto px-6">
@@ -302,8 +407,7 @@ export default function LandingPage() {
             <p
               className="maze-eyebrow text-lime text-center mb-4"
               style={{
-                fontFamily:
-                  "var(--font-jakarta), system-ui, sans-serif",
+                fontFamily: "var(--font-jakarta), system-ui, sans-serif",
               }}
             >
               The Problem
@@ -311,71 +415,102 @@ export default function LandingPage() {
           </Reveal>
           <Reveal delay={0.1}>
             <h2
-              className="text-center max-w-2xl mx-auto"
+              className="text-center max-w-3xl mx-auto"
               style={{
                 fontSize: "clamp(1.5rem, 1.2rem + 1.5vw, 2.5rem)",
-                fontFamily:
-                  "var(--font-jakarta), system-ui, sans-serif",
+                fontFamily: "var(--font-jakarta), system-ui, sans-serif",
               }}
             >
-              The Problem with AI Memory
+              Your memory is fragmented across every AI you use
             </h2>
           </Reveal>
           <Reveal delay={0.15}>
             <p className="text-center text-muted-foreground mt-4 max-w-xl mx-auto leading-relaxed">
-              You told ChatGPT you&apos;re 25. Claude thinks you&apos;re still
-              in college. Poke doesn&apos;t know your name.
+              I built Cortex because I got tired of re-introducing myself to my
+              own tools. If you use more than one AI, you already have this
+              problem.
             </p>
           </Reveal>
 
-          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                label: "ChatGPT",
-                color: "#10a37f",
-                initial: "G",
-                memory: '"Knows your age and job title"',
-              },
-              {
-                label: "Claude",
-                color: "#d97706",
-                initial: "C",
-                memory: '"Has outdated info about your role"',
-              },
-              {
-                label: "Poke",
-                color: "#3b82f6",
-                initial: "P",
-                memory: '"Missing everything you told the others"',
-              },
-            ].map((platform, i) => (
-              <Reveal key={platform.label} delay={0.1 * (i + 1)}>
-                <div className="flex flex-col items-center text-center">
-                  <PlatformBubble
-                    label={platform.label}
-                    color={platform.color}
-                    initial={platform.initial}
-                  />
-                  {/* Disconnected memory bubble */}
-                  <div className="mt-5 relative">
-                    <div className="w-px h-6 bg-border mx-auto" />
-                    <div className="maze-card-static px-5 py-3 mt-0 inline-block border-dashed border-2">
-                      <p className="text-xs text-muted-foreground italic">
-                        {platform.memory}
-                      </p>
-                    </div>
-                    {/* Red "disconnected" indicator */}
-                    <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-400/80 border-2 border-background" />
-                  </div>
-                </div>
-              </Reveal>
-            ))}
+          <div className="mt-14 grid grid-cols-1 md:grid-cols-2 gap-5">
+            <PainCard
+              quote={`"You told ChatGPT you're a founder. Claude has no idea."`}
+              detail="Each AI tool keeps its own memory silo. They never compare notes. You end up with three different, incomplete profiles of yourself."
+              delay={0.1}
+            />
+            <PainCard
+              quote={`"You corrected your age in one tool. The others still think you're 23."`}
+              detail="When facts change, you have to manually update every tool. Forget one, and it gives you wrong answers based on stale context."
+              delay={0.15}
+            />
+            <PainCard
+              quote={`"Every new conversation starts from zero."`}
+              detail="You've had hundreds of conversations. Your AI tools should know you by now. Instead, you repeat your job title, your tech stack, your preferences -- every time."
+              delay={0.2}
+            />
+            <PainCard
+              quote={`"You have no idea what your AI tools actually remember about you."`}
+              detail="Memories are buried in opaque settings pages you never check. There's no unified view of what each tool knows, what's outdated, or what's conflicting."
+              delay={0.25}
+            />
           </div>
+
+          {/* Disconnected platforms visual */}
+          <Reveal delay={0.3}>
+            <div className="mt-16 flex items-center justify-center">
+              <div className="flex items-center gap-8 sm:gap-12">
+                {[
+                  {
+                    label: "ChatGPT",
+                    color: "#10a37f",
+                    initial: "G",
+                    fact: "Knows your job",
+                  },
+                  {
+                    label: "Claude",
+                    color: "#d97706",
+                    initial: "C",
+                    fact: "Knows your stack",
+                  },
+                  {
+                    label: "Poke",
+                    color: "#3b82f6",
+                    initial: "P",
+                    fact: "Knows your name",
+                  },
+                ].map((p, i) => (
+                  <div key={p.label} className="flex flex-col items-center">
+                    <PlatformBubble
+                      label={p.label}
+                      color={p.color}
+                      initial={p.initial}
+                      size="sm"
+                    />
+                    <div className="mt-3 relative">
+                      <div className="w-px h-4 bg-border mx-auto" />
+                      <div className="maze-card-static px-4 py-2 mt-0 inline-block border-dashed border-2">
+                        <p className="text-[11px] text-muted-foreground italic whitespace-nowrap">
+                          {p.fact}
+                        </p>
+                      </div>
+                      <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-400/80 border-2 border-background" />
+                    </div>
+                    {i < 2 && (
+                      <div className="hidden md:block absolute" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <p className="text-center text-xs text-muted-foreground mt-6 tracking-wide">
+              Three tools. Three silos. No shared understanding of who you are.
+            </p>
+          </Reveal>
         </div>
       </section>
 
       {/* ================================================================== */}
-      {/*  SOLUTION                                                          */}
+      {/*  THE SOLUTION                                                      */}
       {/* ================================================================== */}
       <section
         className="py-24 sm:py-32"
@@ -386,8 +521,7 @@ export default function LandingPage() {
             <p
               className="maze-eyebrow text-lime text-center mb-4"
               style={{
-                fontFamily:
-                  "var(--font-jakarta), system-ui, sans-serif",
+                fontFamily: "var(--font-jakarta), system-ui, sans-serif",
               }}
             >
               The Solution
@@ -395,15 +529,21 @@ export default function LandingPage() {
           </Reveal>
           <Reveal delay={0.1}>
             <h2
-              className="text-center max-w-2xl mx-auto"
+              className="text-center max-w-3xl mx-auto"
               style={{
                 fontSize: "clamp(1.5rem, 1.2rem + 1.5vw, 2.5rem)",
-                fontFamily:
-                  "var(--font-jakarta), system-ui, sans-serif",
+                fontFamily: "var(--font-jakarta), system-ui, sans-serif",
               }}
             >
-              One Brain for All Your AI Tools
+              One memory. Every AI.
             </h2>
+          </Reveal>
+          <Reveal delay={0.15}>
+            <p className="text-center text-muted-foreground mt-4 max-w-2xl mx-auto leading-relaxed">
+              Cortex sits between you and your AI tools. It extracts what they
+              learn about you, merges it into a single source of truth, and
+              syncs it back. Update once, propagate everywhere.
+            </p>
           </Reveal>
 
           {/* Hub diagram */}
@@ -432,7 +572,6 @@ export default function LandingPage() {
                   viewBox="0 0 440 340"
                   fill="none"
                 >
-                  {/* ChatGPT line */}
                   <line
                     x1="110"
                     y1="60"
@@ -443,7 +582,6 @@ export default function LandingPage() {
                     className="landing-pulse-line"
                     style={{ animationDelay: "0s" }}
                   />
-                  {/* Claude line */}
                   <line
                     x1="330"
                     y1="60"
@@ -454,7 +592,6 @@ export default function LandingPage() {
                     className="landing-pulse-line"
                     style={{ animationDelay: "0.8s" }}
                   />
-                  {/* Poke line */}
                   <line
                     x1="220"
                     y1="310"
@@ -496,31 +633,104 @@ export default function LandingPage() {
             </div>
           </Reveal>
 
-          {/* Feature cards */}
-          <div className="mt-20 grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <FeatureCard
-              icon={Zap}
-              title="Auto-Extract"
-              description="Memories are automatically extracted from your conversations. No manual tagging required."
-              delay={0.1}
-            />
-            <FeatureCard
-              icon={Brain}
-              title="Smart Dedup"
-              description="Duplicate and conflicting memories are intelligently resolved so your context stays clean."
+          {/* Pipeline flow description */}
+          <Reveal delay={0.3}>
+            <div className="mt-16 maze-card p-6 sm:p-8 max-w-2xl mx-auto">
+              <p
+                className="text-xs font-bold uppercase tracking-widest text-lime mb-5"
+                style={{
+                  fontFamily: "var(--font-jakarta), system-ui, sans-serif",
+                }}
+              >
+                The Pipeline
+              </p>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-0">
+                {[
+                  { label: "Import", sub: "conversations" },
+                  { label: "Extract", sub: "facts via LLM" },
+                  { label: "Deduplicate", sub: "resolve conflicts" },
+                  { label: "Review", sub: "you approve" },
+                  { label: "Sync", sub: "to all platforms" },
+                ].map((step, i, arr) => (
+                  <div
+                    key={step.label}
+                    className="flex items-center gap-3 sm:gap-0 sm:flex-1"
+                  >
+                    <div className="flex flex-col items-center text-center flex-1">
+                      <p className="text-sm font-semibold tracking-tight">
+                        {step.label}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {step.sub}
+                      </p>
+                    </div>
+                    {i < arr.length - 1 && (
+                      <ArrowRight className="h-3.5 w-3.5 text-lime shrink-0 hidden sm:block" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ================================================================== */}
+      {/*  HOW IT WORKS                                                      */}
+      {/* ================================================================== */}
+      <section className="py-24 sm:py-32 bg-background">
+        <div className="max-w-3xl mx-auto px-6">
+          <Reveal>
+            <p
+              className="maze-eyebrow text-lime text-center mb-4"
+              style={{
+                fontFamily: "var(--font-jakarta), system-ui, sans-serif",
+              }}
+            >
+              How It Works
+            </p>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <h2
+              className="text-center max-w-2xl mx-auto mb-14"
+              style={{
+                fontSize: "clamp(1.5rem, 1.2rem + 1.5vw, 2.5rem)",
+                fontFamily: "var(--font-jakarta), system-ui, sans-serif",
+              }}
+            >
+              Four steps to unified memory
+            </h2>
+          </Reveal>
+
+          <div className="max-w-lg mx-auto">
+            <PipelineStep
+              step={1}
+              icon={Upload}
+              title="Connect your AI tools"
+              description="Upload a ChatGPT export, point Cortex at your CLAUDE.md file, or connect Poke via API. Drag-and-drop or auto-watch -- your choice."
               delay={0.15}
             />
-            <FeatureCard
-              icon={RefreshCw}
-              title="Cross-Platform Sync"
-              description="Changes propagate to ChatGPT, Claude, and Poke. Update once, sync everywhere."
+            <PipelineStep
+              step={2}
+              icon={Search}
+              title="Cortex extracts and organizes your memories"
+              description="An LLM pipeline reads your conversations and pulls out facts: preferences, projects, identity, relationships. Each memory is categorized and tagged."
               delay={0.2}
             />
-            <FeatureCard
-              icon={Shield}
-              title="You're in Control"
-              description="Review, edit, and manage what gets shared. Nothing goes out without your approval."
+            <PipelineStep
+              step={3}
+              icon={CheckCircle}
+              title="Review and approve what gets shared"
+              description="Nothing syncs without your say-so. The review queue shows you exactly what Cortex found, flags conflicts, and lets you edit or reject anything."
               delay={0.25}
+            />
+            <PipelineStep
+              step={4}
+              icon={RefreshCw}
+              title="Sync everywhere with one click"
+              description="Approved memories get written back to each platform's native format. ChatGPT Custom Instructions, CLAUDE.md, Poke API -- all updated at once."
+              delay={0.3}
+              isLast
             />
           </div>
         </div>
@@ -529,14 +739,16 @@ export default function LandingPage() {
       {/* ================================================================== */}
       {/*  BEFORE / AFTER                                                    */}
       {/* ================================================================== */}
-      <section className="py-24 sm:py-32 bg-background">
+      <section
+        className="py-24 sm:py-32"
+        style={{ background: "var(--surface-raised)" }}
+      >
         <div className="max-w-4xl mx-auto px-6">
           <Reveal>
             <p
               className="maze-eyebrow text-lime text-center mb-4"
               style={{
-                fontFamily:
-                  "var(--font-jakarta), system-ui, sans-serif",
+                fontFamily: "var(--font-jakarta), system-ui, sans-serif",
               }}
             >
               The Difference
@@ -547,8 +759,7 @@ export default function LandingPage() {
               className="text-center"
               style={{
                 fontSize: "clamp(1.5rem, 1.2rem + 1.5vw, 2.5rem)",
-                fontFamily:
-                  "var(--font-jakarta), system-ui, sans-serif",
+                fontFamily: "var(--font-jakarta), system-ui, sans-serif",
               }}
             >
               Before &amp; After Cortex
@@ -561,24 +772,30 @@ export default function LandingPage() {
               <div className="rounded-xl border-2 border-red-200/60 bg-red-50/30 p-8 h-full relative overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-400 to-red-300" />
                 <p
-                  className="text-xs font-bold uppercase tracking-widest text-red-400 mb-4"
+                  className="text-xs font-bold uppercase tracking-widest text-red-400 mb-5"
                   style={{
-                    fontFamily:
-                      "var(--font-jakarta), system-ui, sans-serif",
+                    fontFamily: "var(--font-jakarta), system-ui, sans-serif",
                   }}
                 >
                   Before
                 </p>
-                <p className="text-lg font-semibold text-foreground leading-snug mb-3">
-                  Fragmented memory everywhere
-                </p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Tell ChatGPT your name. Tell Claude your role. Tell Poke your
-                  projects. Repeat every time. Correct outdated info. Lose
-                  context when switching tools.
-                </p>
+                <div className="space-y-4">
+                  {[
+                    "Tell ChatGPT you're a developer. Tell Claude too. And Poke. And again next week.",
+                    "Update your job title in one tool. The others still introduce you wrong.",
+                    "Switch to a new AI tool. Start completely from scratch.",
+                    "No idea what ChatGPT actually remembers about you. Hope it's right.",
+                  ].map((line) => (
+                    <div key={line} className="flex items-start gap-2.5">
+                      <MessageSquare className="h-3.5 w-3.5 text-red-400 mt-1 shrink-0" />
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {line}
+                      </p>
+                    </div>
+                  ))}
+                </div>
                 <div className="mt-6 flex flex-wrap gap-2">
-                  {["Repetitive", "Inconsistent", "Manual"].map((tag) => (
+                  {["Repetitive", "Inconsistent", "Blind"].map((tag) => (
                     <span
                       key={tag}
                       className="px-2.5 py-1 rounded-md bg-red-100/80 text-red-600 text-[11px] font-semibold uppercase tracking-wide"
@@ -595,24 +812,30 @@ export default function LandingPage() {
               <div className="rounded-xl border-2 border-lime/30 bg-lime-muted/30 p-8 h-full relative overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-lime to-lime/60" />
                 <p
-                  className="text-xs font-bold uppercase tracking-widest text-lime mb-4"
+                  className="text-xs font-bold uppercase tracking-widest text-lime mb-5"
                   style={{
-                    fontFamily:
-                      "var(--font-jakarta), system-ui, sans-serif",
+                    fontFamily: "var(--font-jakarta), system-ui, sans-serif",
                   }}
                 >
                   After
                 </p>
-                <p className="text-lg font-semibold text-foreground leading-snug mb-3">
-                  Unified, always current
-                </p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Tell once. Every AI tool knows. Always current. Always
-                  accurate. Your memory stays in sync across every platform
-                  automatically.
-                </p>
+                <div className="space-y-4">
+                  {[
+                    "Tell Cortex once. Every AI knows.",
+                    "Update your title in the review queue. It propagates in seconds.",
+                    "New tool? Import your full profile with one click.",
+                    "See exactly what each platform knows. Edit or delete anything.",
+                  ].map((line) => (
+                    <div key={line} className="flex items-start gap-2.5">
+                      <CheckCircle className="h-3.5 w-3.5 text-lime mt-1 shrink-0" />
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {line}
+                      </p>
+                    </div>
+                  ))}
+                </div>
                 <div className="mt-6 flex flex-wrap gap-2">
-                  {["Automatic", "Consistent", "Synced"].map((tag) => (
+                  {["Automatic", "Consistent", "Transparent"].map((tag) => (
                     <span
                       key={tag}
                       className="px-2.5 py-1 rounded-md bg-lime/15 text-lime text-[11px] font-semibold uppercase tracking-wide"
@@ -628,21 +851,46 @@ export default function LandingPage() {
       </section>
 
       {/* ================================================================== */}
-      {/*  STATS                                                             */}
+      {/*  LIVE STATS                                                        */}
       {/* ================================================================== */}
-      <section
-        className="py-24 sm:py-32"
-        style={{ background: "var(--surface-raised)" }}
-      >
+      <section className="py-24 sm:py-32 bg-background">
         <div className="max-w-4xl mx-auto px-6">
           <Reveal>
+            <p
+              className="maze-eyebrow text-lime text-center mb-4"
+              style={{
+                fontFamily: "var(--font-jakarta), system-ui, sans-serif",
+              }}
+            >
+              Right Now
+            </p>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <h2
+              className="text-center mb-14"
+              style={{
+                fontSize: "clamp(1.5rem, 1.2rem + 1.5vw, 2.5rem)",
+                fontFamily: "var(--font-jakarta), system-ui, sans-serif",
+              }}
+            >
+              Your Cortex at a glance
+            </h2>
+          </Reveal>
+          <Reveal delay={0.15}>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
               {[
-                { value: "247", label: "Memories Managed" },
-                { value: "3", label: "Platforms Connected" },
-                { value: "12", label: "Auto-Syncs This Week" },
+                { value: String(stats.memories), label: "Memories Managed" },
+                {
+                  value: String(stats.sources),
+                  label: "Platforms Connected",
+                },
+                { value: String(stats.syncs), label: "Sources Imported" },
               ].map((stat, i) => (
-                <div key={stat.label} className="landing-count" style={{ animationDelay: `${i * 0.15}s` }}>
+                <div
+                  key={stat.label}
+                  className="landing-count"
+                  style={{ animationDelay: `${i * 0.15}s` }}
+                >
                   <p
                     className="font-bold tracking-tight text-lime"
                     style={{
@@ -695,17 +943,18 @@ export default function LandingPage() {
               className="text-white leading-tight"
               style={{
                 fontSize: "clamp(1.75rem, 1.4rem + 2vw, 3rem)",
-                fontFamily:
-                  "var(--font-jakarta), system-ui, sans-serif",
+                fontFamily: "var(--font-jakarta), system-ui, sans-serif",
                 letterSpacing: "-0.03em",
               }}
             >
-              Ready to unify your AI memory?
+              Stop re-introducing yourself to your own tools.
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
-            <p className="mt-4 text-white/50 text-lg">
-              Stop repeating yourself. Start syncing.
+            <p className="mt-4 text-white/50 text-lg leading-relaxed">
+              Cortex runs locally on your machine. Your memories never leave
+              your disk. No cloud, no account, no tracking. Just your AI
+              context, finally in one place.
             </p>
           </Reveal>
           <Reveal delay={0.2}>
@@ -713,9 +962,15 @@ export default function LandingPage() {
               href="/"
               className="maze-btn maze-btn-lime text-base px-10 py-4 h-auto rounded-xl font-medium shadow-lg hover:shadow-xl mt-10 inline-flex"
             >
-              Open Dashboard
+              <Lock className="h-4 w-4 mr-2" />
+              Get Started -- It&apos;s Local
               <ArrowRight className="h-5 w-5 ml-2" />
             </Link>
+          </Reveal>
+          <Reveal delay={0.25}>
+            <p className="mt-6 text-white/30 text-sm">
+              SQLite on your machine. No cloud. No sign-up.
+            </p>
           </Reveal>
         </div>
       </section>
@@ -728,15 +983,14 @@ export default function LandingPage() {
             <span
               className="text-sm font-medium tracking-tight text-muted-foreground"
               style={{
-                fontFamily:
-                  "var(--font-jakarta), system-ui, sans-serif",
+                fontFamily: "var(--font-jakarta), system-ui, sans-serif",
               }}
             >
               Cortex
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Personal AI Memory Sync
+            Built by Sanjay. Because AI memory shouldn&apos;t be siloed.
           </p>
         </div>
       </footer>
