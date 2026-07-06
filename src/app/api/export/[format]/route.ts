@@ -23,6 +23,10 @@ async function getPokeApiKey(): Promise<string | null> {
   return typeof apiKey === "string" && apiKey.length > 0 ? apiKey : null;
 }
 
+function getPokeKeyKind(apiKey: string): "legacy_pk" | "v2" {
+  return apiKey.startsWith("pk_") ? "legacy_pk" : "v2";
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ format: string }> }
@@ -93,6 +97,11 @@ export async function GET(
             destination: "poke",
             status: "dry_run",
             memoriesCount: exportable.length,
+            details: JSON.stringify({
+              endpoint: result.endpoint,
+              keyKind: getPokeKeyKind(apiKey),
+              dryRun: true,
+            }),
             durationMs: Date.now() - startTime,
           },
         });
@@ -105,6 +114,16 @@ export async function GET(
           status: result.success ? "success" : "failed",
           memoriesCount: exportable.length,
           errorMessage: result.error || null,
+          details: JSON.stringify({
+            endpoint: result.endpoint,
+            httpStatus: result.httpStatus,
+            responseSnippet: result.responseSnippet,
+            keyKind: getPokeKeyKind(apiKey),
+            dryRun: false,
+            note: result.success
+              ? "Poke API accepted the request. Delivery/processing is controlled by Poke."
+              : undefined,
+          }),
           durationMs: Date.now() - startTime,
         },
       });

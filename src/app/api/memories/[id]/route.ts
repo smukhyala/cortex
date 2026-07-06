@@ -44,7 +44,20 @@ export async function PATCH(
   });
 
   // Propagate changes to all platforms
-  propagateToAllPlatforms().catch(console.error);
+  propagateToAllPlatforms({
+    pokeMessage:
+      memory.status === "archived"
+        ? `Please forget/remove this user memory if you have stored it: ${memory.content}`
+        : `Please remember this user memory: ${memory.content}. If I ask about this later, answer using this memory.`,
+    pokeRunId: `cortex-memory-${memory.status === "archived" ? "archive" : "update"}-${memory.id}`,
+    pokeMetadata: {
+      type: "memory_update",
+      action: memory.status === "archived" ? "delete" : "update",
+      memoryId: memory.id,
+      memory: memory.content,
+      category: memory.category,
+    },
+  }).catch(console.error);
 
   return NextResponse.json(memory);
 }
@@ -54,13 +67,23 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  await prisma.memory.update({
+  const memory = await prisma.memory.update({
     where: { id },
     data: { status: "archived", archivedAt: new Date(), archivedReason: "Deleted by user" },
   });
 
   // Propagate changes to all platforms
-  propagateToAllPlatforms().catch(console.error);
+  propagateToAllPlatforms({
+    pokeMessage: `Please forget/remove this user memory if you have stored it: ${memory.content}`,
+    pokeRunId: `cortex-memory-delete-${memory.id}`,
+    pokeMetadata: {
+      type: "memory_update",
+      action: "delete",
+      memoryId: memory.id,
+      memory: memory.content,
+      category: memory.category,
+    },
+  }).catch(console.error);
 
   return NextResponse.json({ success: true });
 }

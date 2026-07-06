@@ -139,8 +139,24 @@ Always return the cleanest, most atomic version of the fact as content. For exam
     },
   });
 
+  const pokeMessage =
+    action === "delete"
+      ? `Please forget/remove this user memory if you have stored it: ${content || statement}`
+      : `Please remember this user memory: ${content}. If I ask about this later, answer using this memory.`;
+
   // Propagate to all platforms
-  const propagation = await propagateToAllPlatforms();
+  const propagation = await propagateToAllPlatforms({
+    pokeMessage,
+    pokeRunId: `cortex-quick-${action}-${memoryId ?? Date.now()}`,
+    pokeMetadata: {
+      type: "memory_update",
+      action,
+      memoryId,
+      memory: content,
+      category,
+      reasoning,
+    },
+  });
 
   return NextResponse.json({
     action,

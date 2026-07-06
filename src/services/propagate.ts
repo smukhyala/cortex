@@ -15,6 +15,12 @@ interface PropagationResult {
   chatgptText?: string; // ChatGPT doesn't have write-back, so return text for user to copy
 }
 
+interface PropagationOptions {
+  pokeMessage?: string;
+  pokeMetadata?: Record<string, unknown>;
+  pokeRunId?: string;
+}
+
 function readConfig(config: string | null | undefined): Record<string, unknown> {
   try {
     return JSON.parse(config || "{}");
@@ -27,7 +33,13 @@ function isDirectory(filePath: string): boolean {
   return fs.statSync(/* turbopackIgnore: true */ filePath).isDirectory();
 }
 
-export async function propagateToAllPlatforms(): Promise<PropagationResult> {
+function getPokeKeyKind(apiKey: string): "legacy_pk" | "v2" {
+  return apiKey.startsWith("pk_") ? "legacy_pk" : "v2";
+}
+
+export async function propagateToAllPlatforms(
+  options: PropagationOptions = {}
+): Promise<PropagationResult> {
   const memories = await prisma.memory.findMany({
     where: { status: "active" },
     select: { content: true, category: true, sensitive: true },
@@ -108,7 +120,11 @@ export async function propagateToAllPlatforms(): Promise<PropagationResult> {
 
   for (const target of pokeTargets) {
     try {
-      const result = await pushToPoke(memories, target.apiKey);
+      const result = await pushToPoke(memories, target.apiKey, {
+        message: options.pokeMessage,
+        metadata: options.pokeMetadata,
+        runId: options.pokeRunId,
+      });
       results.destinations.push({
         type: "poke",
         name: target.name,
@@ -121,6 +137,16 @@ export async function propagateToAllPlatforms(): Promise<PropagationResult> {
           status: result.success ? "success" : "failed",
           memoriesCount: memories.length,
           errorMessage: result.error || null,
+          details: JSON.stringify({
+            target: target.name,
+            endpoint: result.endpoint,
+            httpStatus: result.httpStatus,
+            responseSnippet: result.responseSnippet,
+            keyKind: getPokeKeyKind(target.apiKey),
+            note: result.success
+              ? "Poke API accepted the request. Delivery/processing is controlled by Poke."
+              : undefined,
+          }),
           durationMs: Date.now() - startTime,
         },
       });

@@ -27,7 +27,11 @@ export async function POST(req: NextRequest) {
   if (action === "approve_all") {
     const pending = await prisma.reviewItem.findMany({
       where: { status: "pending", type: "new_memory" },
-      select: { id: true, memoryId: true },
+      select: {
+        id: true,
+        memoryId: true,
+        memory: { select: { content: true, category: true } },
+      },
     });
 
     for (const item of pending) {
@@ -48,7 +52,18 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    propagateToAllPlatforms().catch(console.error);
+    propagateToAllPlatforms({
+      pokeMessage: [
+        `Please remember these ${pending.length} newly approved Cortex memories. If I ask about them later, answer using these memories.`,
+        ...pending.map((item) => `- ${item.memory.content}`),
+      ].join("\n"),
+      pokeRunId: `cortex-review-approve-all-${Date.now()}`,
+      pokeMetadata: {
+        type: "memory_update",
+        action: "approve_all",
+        count: pending.length,
+      },
+    }).catch(console.error);
 
     return NextResponse.json({ approved: pending.length });
   }

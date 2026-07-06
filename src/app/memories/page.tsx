@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Search, Download, Archive, Brain, Pencil, Sparkles, GitMerge, X } from "lucide-react";
+import { Search, Download, Archive, Brain, Pencil, Sparkles, GitMerge, X, Zap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 interface Memory {
@@ -45,6 +45,7 @@ export default function MemoriesPage() {
   const [dedupRunning, setDedupRunning] = useState(false);
   const [quickStatement, setQuickStatement] = useState("");
   const [quickLoading, setQuickLoading] = useState(false);
+  const [pushingPoke, setPushingPoke] = useState(false);
 
   useEffect(() => {
     fetch("/api/categories").then(r => r.json()).then(setCategories);
@@ -114,6 +115,23 @@ export default function MemoriesPage() {
       toast.success(`Exported as ${format} format`);
     } catch {
       toast.error("Export failed");
+    }
+  }
+
+  async function handlePushToPoke() {
+    setPushingPoke(true);
+    try {
+      const res = await fetch("/api/export/poke");
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(`Pushed ${memories.length} memories to Poke`);
+      } else {
+        toast.error(data.error || "Poke push failed");
+      }
+    } catch {
+      toast.error("Poke push failed");
+    } finally {
+      setPushingPoke(false);
     }
   }
 
@@ -207,6 +225,14 @@ export default function MemoriesPage() {
         <div className="flex items-center gap-2">
           <button
             className="maze-btn maze-btn-outline gap-1.5 text-[13px]"
+            onClick={handlePushToPoke}
+            disabled={pushingPoke}
+          >
+            <Zap className={`h-3.5 w-3.5 ${pushingPoke ? "animate-spin" : ""}`} />
+            {pushingPoke ? "Syncing..." : "Sync Poke"}
+          </button>
+          <button
+            className="maze-btn maze-btn-outline gap-1.5 text-[13px]"
             onClick={handleDedupScan}
             disabled={dedupRunning}
           >
@@ -232,7 +258,11 @@ export default function MemoriesPage() {
                 key={key}
                 className="w-full text-left px-4 py-2.5 text-[13px] hover:bg-muted transition-colors"
                 onClick={() => {
-                  handleExport(key);
+                  if (key === "poke") {
+                    handlePushToPoke();
+                  } else {
+                    handleExport(key);
+                  }
                   document.getElementById("export-menu")?.classList.add("hidden");
                 }}
               >

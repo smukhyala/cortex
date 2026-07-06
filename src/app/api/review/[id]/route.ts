@@ -12,7 +12,7 @@ export async function PATCH(
 
   const reviewItem = await prisma.reviewItem.findUnique({
     where: { id },
-    include: { conflict: true },
+    include: { conflict: true, memory: true },
   });
 
   if (!reviewItem) {
@@ -46,7 +46,18 @@ export async function PATCH(
         },
       });
 
-      propagateToAllPlatforms().catch(console.error);
+      const approvedContent = editedContent || reviewItem.memory.content;
+      propagateToAllPlatforms({
+        pokeMessage: `Please remember this user memory: ${approvedContent}. If I ask about this later, answer using this memory.`,
+        pokeRunId: `cortex-review-approve-${reviewItem.memoryId}`,
+        pokeMetadata: {
+          type: "memory_update",
+          action: "approve",
+          memoryId: reviewItem.memoryId,
+          memory: approvedContent,
+          category: reviewItem.memory.category,
+        },
+      }).catch(console.error);
 
       return NextResponse.json({ success: true, action: "approved" });
     }
@@ -69,7 +80,17 @@ export async function PATCH(
         },
       });
 
-      propagateToAllPlatforms().catch(console.error);
+      propagateToAllPlatforms({
+        pokeMessage: `Please ignore/reject this proposed user memory if you saw it before: ${reviewItem.memory.content}`,
+        pokeRunId: `cortex-review-reject-${reviewItem.memoryId}`,
+        pokeMetadata: {
+          type: "memory_update",
+          action: "reject",
+          memoryId: reviewItem.memoryId,
+          memory: reviewItem.memory.content,
+          category: reviewItem.memory.category,
+        },
+      }).catch(console.error);
 
       return NextResponse.json({ success: true, action: "rejected" });
     }
@@ -141,7 +162,24 @@ export async function PATCH(
         },
       });
 
-      propagateToAllPlatforms().catch(console.error);
+      const conflictMemory =
+        resolution === "merge" && editedContent
+          ? editedContent
+          : reviewItem.memory.content;
+      propagateToAllPlatforms({
+        pokeMessage:
+          resolution === "keep_existing"
+            ? `Please ignore/reject this proposed user memory if you saw it before: ${reviewItem.memory.content}`
+            : `Please remember this user memory: ${conflictMemory}. If I ask about this later, answer using this memory.`,
+        pokeRunId: `cortex-review-conflict-${resolution}-${reviewItem.memoryId}`,
+        pokeMetadata: {
+          type: "memory_update",
+          action: `resolve_conflict:${resolution}`,
+          memoryId: reviewItem.memoryId,
+          memory: conflictMemory,
+          category: reviewItem.memory.category,
+        },
+      }).catch(console.error);
 
       return NextResponse.json({ success: true, action: "resolved", resolution });
     }
