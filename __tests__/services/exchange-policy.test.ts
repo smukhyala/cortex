@@ -74,4 +74,30 @@ describe("exchange policy orchestration", () => {
     expect(JSON.parse(config).apiKey).toBe("secret");
     expect(getExchangePolicy(config, "poke").blockedCategories).toEqual(["design"]);
   });
+
+  it("natural language: don't send school memories to Poke → mode block, education_career blocked", () => {
+    const policy = deriveExchangePolicyFromText({
+      destination: "poke",
+      instruction: "don't send school memories to Poke",
+      categories: [
+        { slug: "education_career", label: "Education & Career" },
+        { slug: "projects", label: "Projects" },
+      ],
+    });
+    expect(policy.mode).toBe("block");
+    expect(policy.blockedCategories).toContain("education_career");
+  });
+
+  it("natural language: only share projects with Claude → mode allow_only, projects allowed", () => {
+    const policy = deriveExchangePolicyFromText({
+      destination: "claude_code",
+      instruction: "only share projects with Claude",
+      categories: [
+        { slug: "education_career", label: "Education & Career" },
+        { slug: "projects", label: "Projects" },
+      ],
+    });
+    expect(policy.mode).toBe("allow_only");
+    expect(policy.allowedCategories).toContain("projects");
+  });
 });
