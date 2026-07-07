@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { formatForChatGPT } from "@/exporters/chatgpt";
 import { formatForClaude } from "@/exporters/claude";
 import { pushToPoke } from "@/exporters/poke";
+import { propagateToAllPlatforms } from "@/services/propagate";
 
 function readConfig(config: string | null | undefined): Record<string, unknown> {
   try {
@@ -88,6 +89,18 @@ export async function GET(
         );
       }
       const dryRun = req.nextUrl.searchParams.get("dryRun") === "true";
+      if (!dryRun) {
+        const propagation = await propagateToAllPlatforms({
+          onlyDestinations: ["poke"],
+          pokeRunId: `cortex-export-poke-${Date.now()}`,
+          pokeMetadata: { type: "manual_poke_export" },
+        });
+        const ok = propagation.destinations.every((destination) => destination.success);
+        return NextResponse.json(
+          { success: ok, destinations: propagation.destinations },
+          { status: ok ? 200 : 500 }
+        );
+      }
       const startTime = Date.now();
       const result = await pushToPoke(exportable, apiKey, { dryRun });
 

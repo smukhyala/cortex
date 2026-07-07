@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { structuredCall } from "@/lib/llm";
-import { propagateToAllPlatforms } from "@/services/propagate";
+import { notifyMemoryChange } from "@/services/memory-change";
 import { getCategories } from "@/lib/categories";
 
 const QuickStatementResultSchema = z.object({
@@ -139,23 +139,11 @@ Always return the cleanest, most atomic version of the fact as content. For exam
     },
   });
 
-  const pokeMessage =
-    action === "delete"
-      ? `Please forget/remove this Cortex user memory if you have stored it, and do not use it in future answers: ${content || statement}`
-      : `Please remember this Cortex user memory and use it in future answers automatically, without requiring me to ask you to use Cortex or MCP: ${content}`;
-
-  // Propagate to all platforms
-  const propagation = await propagateToAllPlatforms({
-    pokeMessage,
-    pokeRunId: `cortex-quick-${action}-${memoryId ?? Date.now()}`,
-    pokeMetadata: {
-      type: "memory_update",
-      action,
-      memoryId,
-      memory: content,
-      category,
-      reasoning,
-    },
+  const propagation = await notifyMemoryChange({
+    action,
+    memoryId,
+    content,
+    category,
   });
 
   return NextResponse.json({

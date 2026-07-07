@@ -34,6 +34,11 @@ interface Source {
 interface StatusData {
   connections: Record<string, { connected: boolean; label: string; description: string }>;
   stats: { memories: number; pending: number; sources: number; lastSync: string | null };
+  cortexMcp?: {
+    installed: number;
+    total: number;
+    needsRepair: boolean;
+  };
 }
 
 interface Account {
@@ -92,6 +97,20 @@ interface ExchangeDestinationConfig {
   sourceType: string;
   destination: string;
   policy: ExchangePolicy;
+}
+
+interface McpTargetStatus {
+  target: "claude_desktop" | "claude_code";
+  label: string;
+  path: string;
+  status: "installed" | "missing" | "drifted" | "invalid_json";
+  error?: string;
+}
+
+interface McpConfigStatus {
+  targets: McpTargetStatus[];
+  summary: { installed: number; total: number; needsRepair: boolean };
+  pokeHttp: { url: string; healthUrl: string };
 }
 
 const DETECTED_VIA_COLORS: Record<string, string> = {
@@ -169,6 +188,16 @@ export default function SettingsPage() {
   const [policyDrafts, setPolicyDrafts] = useState<Record<string, ExchangePolicy>>({});
   const [policyText, setPolicyText] = useState<Record<string, string>>({});
   const [savingPolicyId, setSavingPolicyId] = useState<string | null>(null);
+  const [mcpConfig, setMcpConfig] = useState<McpConfigStatus | null>(null);
+  const [repairingMcp, setRepairingMcp] = useState(false);
+  const [bootstrapInstructions, setBootstrapInstructions] = useState("");
+  const [claudeAiConnector, setClaudeAiConnector] = useState<{
+    connectorName: string;
+    localMcpUrl: string;
+    publicMcpUrl: string | null;
+    configured: boolean;
+    setupInstructions: string[];
+  } | null>(null);
 
   useEffect(() => {
     fetchSources();
@@ -176,6 +205,8 @@ export default function SettingsPage() {
     fetchAccounts();
     fetchConnectors();
     fetchExchangePolicies();
+    fetchMcpConfig();
+    fetchBootstrapInstructions();
     detectIntegrations();
   }, []);
 
@@ -237,6 +268,77 @@ export default function SettingsPage() {
       );
     } catch {
       toast.error("Failed to load exchange policies");
+    }
+  }
+
+  async function fetchMcpConfig() {
+    try {
+      const res = await fetch("/api/mcp/config");
+      setMcpConfig(await res.json());
+    } catch {
+      // MCP setup is optional on first load.
+    }
+  }
+
+  async function fetchBootstrapInstructions() {
+    try {
+      const res = await fetch("/api/bootstrap");
+      const data = await res.json();
+      setBootstrapInstructions(data.instructions || "");
+      setClaudeAiConnector(data.claudeAi || null);
+    } catch {
+      // Optional helper text.
+    }
+  }
+
+  async function handleRepairMcp() {
+    setRepairingMcp(true);
+    try {
+      const res = await fetch("/api/mcp/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targets: ["claude_desktop", "claude_code"], installBootstrap: true }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("Cortex MCP repaired. Restart Claude Desktop/Claude Code if they were open.");
+        setMcpConfig({
+          targets: data.targets,
+          summary: {
+            installed: data.targets.filter((target: McpTargetStatus) => target.status === "installed").length,
+            total: data.targets.length,
+            needsRepair: data.targets.some((target: McpTargetStatus) => target.status !== "installed"),
+          },
+          pokeHttp: mcpConfig?.pokeHttp || { url: "http://localhost:3001/mcp", healthUrl: "http://localhost:3001/" },
+        });
+      } else {
+        toast.error(data.error || "Failed to repair MCP config");
+      }
+    } catch {
+      toast.error("Failed to repair MCP config");
+    } finally {
+      setRepairingMcp(false);
+      fetchMcpConfig();
+      fetchStatus();
+    }
+  }
+
+  async function copyClaudeAiSetup() {
+    if (!claudeAiConnector) return;
+    const lines = [
+      `Connector name: ${claudeAiConnector.connectorName}`,
+      `MCP URL: ${claudeAiConnector.publicMcpUrl || "(set CORTEX_PUBLIC_MCP_URL first)"}`,
+      "",
+      "Instructions:",
+      ...claudeAiConnector.setupInstructions.map((item) => `- ${item}`),
+      "",
+      bootstrapInstructions,
+    ];
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      toast.success("Claude.ai setup copied");
+    } catch {
+      toast.error("Could not copy Claude.ai setup");
     }
   }
 
@@ -1083,15 +1185,74 @@ export default function SettingsPage() {
       {/* ── MCP Server ── */}
       <section>
         <p className="maze-eyebrow mb-4">MCP Server</p>
-        <div className="maze-card p-5 space-y-3">
+        <div className="maze-card p-5 space-y-4">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Cortex exposes an MCP server that AI tools can connect to. Poke and Claude can call{" "}
+            Cortex exposes an MCP server that AI tools can connect to automatically. Claude and Poke can call{" "}
             <code className="text-[12px] bg-muted px-1.5 py-0.5 rounded font-mono">cortex_get_memories()</code>{" "}
+            or <code className="text-[12px] bg-muted px-1.5 py-0.5 rounded font-mono">cortex_get_context()</code>{" "}
             to pull your latest context.
           </p>
-          <div className="p-3 rounded-lg bg-muted text-sm font-mono">
-            <p className="maze-eyebrow mb-1">Connection</p>
-            <p className="text-[13px]">stdio transport via <code>npm run mcp</code></p>
+          <div className="grid gap-2">
+            {(mcpConfig?.targets || []).map((target) => (
+              <div key={target.target} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium tracking-tight">{target.label}</p>
+                    <span className={`text-[10px] uppercase tracking-[0.12em] px-2 py-0.5 rounded-full border ${
+                      target.status === "installed"
+                        ? "bg-lime/10 text-lime border-lime/20"
+                        : target.status === "invalid_json"
+                          ? "bg-red-500/10 text-red-500 border-red-500/20"
+                          : "bg-yellow-500/10 text-yellow-600 border-yellow-500/20"
+                    }`}>
+                      {target.status.replace("_", " ")}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground truncate mt-0.5">{target.path}</p>
+                  {target.error && <p className="text-[11px] text-red-500 mt-1">{target.error}</p>}
+                </div>
+                {target.status === "installed" ? (
+                  <CheckCircle className="h-4 w-4 text-lime shrink-0" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0" />
+                )}
+              </div>
+            ))}
+            {!mcpConfig && (
+              <div className="rounded-lg border border-border p-3 text-sm text-muted-foreground">
+                Loading MCP status...
+              </div>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button className="maze-btn h-9 text-[13px]" onClick={handleRepairMcp} disabled={repairingMcp}>
+              {repairingMcp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              Repair Cortex MCP
+            </button>
+            <span className="text-xs text-muted-foreground">
+              {mcpConfig?.summary.needsRepair ? "Repair will preserve unrelated config and update only the Cortex entry." : "Local MCP config is installed."}
+            </span>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="p-3 rounded-lg bg-muted text-sm">
+              <p className="maze-eyebrow mb-1">Poke HTTP MCP</p>
+              <p className="text-[13px] font-mono break-all">{mcpConfig?.pokeHttp.url || "http://localhost:3001/mcp"}</p>
+              <p className="text-[11px] text-muted-foreground mt-1">Run <code>npm run mcp:http</code> for Poke or HTTP MCP clients.</p>
+            </div>
+            <div className="p-3 rounded-lg bg-muted text-sm">
+              <p className="maze-eyebrow mb-1">Claude.ai</p>
+              <p className="text-[13px] text-muted-foreground">
+                Hosted Claude needs a public HTTPS remote connector.
+              </p>
+              <p className={`text-[11px] mt-2 ${claudeAiConnector?.configured ? "text-lime" : "text-yellow-600"}`}>
+                {claudeAiConnector?.configured
+                  ? `Configured: ${claudeAiConnector.publicMcpUrl}`
+                  : "Set CORTEX_PUBLIC_MCP_URL to your public /mcp tunnel URL."}
+              </p>
+              <button className="maze-btn maze-btn-ghost h-7 text-xs mt-2" onClick={copyClaudeAiSetup} disabled={!bootstrapInstructions}>
+                Copy Claude.ai Setup
+              </button>
+            </div>
           </div>
         </div>
       </section>

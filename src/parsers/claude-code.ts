@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { readFile, writeFile, stat, readdir } from "fs/promises";
 import { join } from "path";
 import type { NormalizedConversation, NormalizedMessage } from "@/contracts/conversation";
+import { stripBootstrapBlocks } from "@/exporters/bootstrap";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -25,7 +26,7 @@ const CORTEX_END = "<!-- cortex:end -->";
 // ─── Markdown Parser ────────────────────────────────────────────────────────
 
 export function parseMarkdownSections(content: string): ParsedSection[] {
-  const lines = content.split("\n");
+  const lines = stripBootstrapBlocks(content).split("\n");
   const sections: ParsedSection[] = [];
   let currentSection: ParsedSection = { heading: "default", level: 0, items: [] };
   let paragraphLines: string[] = [];

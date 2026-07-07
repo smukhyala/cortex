@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { propagateToAllPlatforms } from "@/services/propagate";
+import { notifyMemoryChange } from "@/services/memory-change";
 
 export async function GET(
   req: NextRequest,
@@ -43,21 +43,12 @@ export async function PATCH(
     },
   });
 
-  // Propagate changes to all platforms
-  propagateToAllPlatforms({
-    pokeMessage:
-      memory.status === "archived"
-        ? `Please forget/remove this user memory if you have stored it: ${memory.content}`
-        : `Please remember this Cortex user memory and use it in future answers automatically, without requiring me to ask you to use Cortex or MCP: ${memory.content}`,
-    pokeRunId: `cortex-memory-${memory.status === "archived" ? "archive" : "update"}-${memory.id}`,
-    pokeMetadata: {
-      type: "memory_update",
-      action: memory.status === "archived" ? "delete" : "update",
-      memoryId: memory.id,
-      memory: memory.content,
-      category: memory.category,
-    },
-  }).catch(console.error);
+  await notifyMemoryChange({
+    action: memory.status === "archived" ? "archive" : "update",
+    memoryId: memory.id,
+    content: memory.content,
+    category: memory.category,
+  });
 
   return NextResponse.json(memory);
 }
@@ -72,18 +63,12 @@ export async function DELETE(
     data: { status: "archived", archivedAt: new Date(), archivedReason: "Deleted by user" },
   });
 
-  // Propagate changes to all platforms
-  propagateToAllPlatforms({
-    pokeMessage: `Please forget/remove this Cortex user memory if you have stored it, and do not use it in future answers: ${memory.content}`,
-    pokeRunId: `cortex-memory-delete-${memory.id}`,
-    pokeMetadata: {
-      type: "memory_update",
-      action: "delete",
-      memoryId: memory.id,
-      memory: memory.content,
-      category: memory.category,
-    },
-  }).catch(console.error);
+  await notifyMemoryChange({
+    action: "delete",
+    memoryId: memory.id,
+    content: memory.content,
+    category: memory.category,
+  });
 
   return NextResponse.json({ success: true });
 }

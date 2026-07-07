@@ -6,6 +6,7 @@ import { deduplicateMemories } from "./deduplicate";
 import { commit } from "./commit";
 import type { SourceType, SyncTrigger } from "@/contracts/source";
 import { getCategories } from "@/lib/categories";
+import { notifyMemoryChange } from "@/services/memory-change";
 
 /**
  * Run the full 4-agent pipeline synchronously.
@@ -177,6 +178,13 @@ export async function runPipeline(input: {
         }),
       },
     });
+
+    if (commitResult.autoApproved > 0 || commitResult.autoSuperseded > 0 || commitResult.referencesUpdated > 0) {
+      await notifyMemoryChange({
+        action: "sync_auto_update",
+        count: commitResult.autoApproved + commitResult.autoSuperseded + commitResult.referencesUpdated,
+      });
+    }
 
     return {
       syncRunId: syncRun.id,

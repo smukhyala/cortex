@@ -21,6 +21,7 @@ interface PropagationOptions {
   pokeMetadata?: Record<string, unknown>;
   pokeRunId?: string;
   skipDestinations?: string[];
+  onlyDestinations?: string[];
 }
 
 function readConfig(config: string | null | undefined): Record<string, unknown> {
@@ -65,11 +66,13 @@ export async function propagateToAllPlatforms(
   const results: PropagationResult = { destinations: [] };
   const startTime = Date.now();
   const skipDestinations = new Set(options.skipDestinations ?? []);
+  const onlyDestinations = options.onlyDestinations ? new Set(options.onlyDestinations) : null;
 
   // Claude Code sources — write to CLAUDE.md
   const claudeCodeSources = sources.filter((s) => s.type === "claude_code");
   for (const source of claudeCodeSources) {
     if (skipDestinations.has("claude_code")) continue;
+    if (onlyDestinations && !onlyDestinations.has("claude_code")) continue;
     try {
       const policy = getExchangePolicy(source.config, "claude_code");
       const destinationMemories = filterMemoriesForDestination(memories, policy);
@@ -142,6 +145,7 @@ export async function propagateToAllPlatforms(
 
   for (const target of pokeTargets) {
     if (skipDestinations.has("poke")) continue;
+    if (onlyDestinations && !onlyDestinations.has("poke")) continue;
     try {
       const policy = getExchangePolicy(target.config, "poke");
       const destinationMemories = filterMemoriesForDestination(memories, policy);
@@ -212,12 +216,26 @@ export async function propagateToAllPlatforms(
         success: false,
         error: msg,
       });
+      await prisma.exportLog.create({
+        data: {
+          destination: "poke",
+          status: "failed",
+          memoriesCount: memories.length,
+          errorMessage: msg,
+          details: JSON.stringify({ target: target.name }),
+          durationMs: Date.now() - startTime,
+        },
+      });
     }
   }
 
   // ChatGPT — generate text (no write-back API)
   const chatgptSources = sources.filter((s) => s.type === "chatgpt_export");
-  if (chatgptSources.length > 0 && !skipDestinations.has("chatgpt_export")) {
+  if (
+    chatgptSources.length > 0 &&
+    !skipDestinations.has("chatgpt_export") &&
+    (!onlyDestinations || onlyDestinations.has("chatgpt_export"))
+  ) {
     results.chatgptText = formatForChatGPT(memories);
     results.destinations.push({
       type: "chatgpt_export",

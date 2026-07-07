@@ -125,13 +125,27 @@ async function inferFavoriteColorFact(textProcessed: string): Promise<ExchangeFa
 
 function inferHypotheticalNamingFact(textProcessed: string): ExchangeFact[] {
   const text = textProcessed.replace(/^User:\s*/gm, "").trim();
-  const match = text.match(
+  const directMatch = text.match(
+    /\bi\s+would\s+name\s+(?:a|an|my)\s+([a-z][a-z\s-]*?)\s+([^.\n!?]+)/i
+  );
+  if (directMatch?.[1] && directMatch[2]) {
+    const subject = directMatch[1].trim().toLowerCase();
+    const name = capitalizeWords(directMatch[2].trim());
+    if (subject && name) {
+      return [{
+        content: `User would name a ${subject} ${name}.`,
+        category: "preferences",
+      }];
+    }
+  }
+
+  const hypotheticalMatch = text.match(
     /\bif\s+i\s+(?:had|have|got|owned)\s+(?:a|an)\s+([a-z][a-z\s-]*?)\s+(?:it|they|he|she)?\s*would\s+be\s+(?:called|named)\s+([^.\n!?]+)/i
   );
-  if (!match?.[1] || !match[2]) return [];
+  if (!hypotheticalMatch?.[1] || !hypotheticalMatch[2]) return [];
 
-  const subject = match[1].trim().toLowerCase();
-  const name = capitalizeWords(match[2].trim());
+  const subject = hypotheticalMatch[1].trim().toLowerCase();
+  const name = capitalizeWords(hypotheticalMatch[2].trim());
   if (!subject || !name) return [];
 
   return [{

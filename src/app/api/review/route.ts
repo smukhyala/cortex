@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { propagateToAllPlatforms } from "@/services/propagate";
+import { notifyMemoryChange } from "@/services/memory-change";
 
 export async function GET() {
   const items = await prisma.reviewItem.findMany({
@@ -52,18 +52,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    propagateToAllPlatforms({
-      pokeMessage: [
-        `Please remember these ${pending.length} newly approved Cortex memories and use them in future answers automatically, without requiring me to ask you to use Cortex or MCP.`,
-        ...pending.map((item) => `- ${item.memory.content}`),
-      ].join("\n"),
-      pokeRunId: `cortex-review-approve-all-${Date.now()}`,
-      pokeMetadata: {
-        type: "memory_update",
-        action: "approve_all",
-        count: pending.length,
-      },
-    }).catch(console.error);
+    await notifyMemoryChange({ action: "approve_all", count: pending.length });
 
     return NextResponse.json({ approved: pending.length });
   }

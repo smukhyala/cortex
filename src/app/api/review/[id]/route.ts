@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { propagateToAllPlatforms } from "@/services/propagate";
+import { notifyMemoryChange } from "@/services/memory-change";
 
 export async function PATCH(
   req: NextRequest,
@@ -47,17 +47,12 @@ export async function PATCH(
       });
 
       const approvedContent = editedContent || reviewItem.memory.content;
-      propagateToAllPlatforms({
-        pokeMessage: `Please remember this Cortex user memory and use it in future answers automatically, without requiring me to ask you to use Cortex or MCP: ${approvedContent}`,
-        pokeRunId: `cortex-review-approve-${reviewItem.memoryId}`,
-        pokeMetadata: {
-          type: "memory_update",
-          action: "approve",
-          memoryId: reviewItem.memoryId,
-          memory: approvedContent,
-          category: reviewItem.memory.category,
-        },
-      }).catch(console.error);
+      await notifyMemoryChange({
+        action: "approve",
+        memoryId: reviewItem.memoryId,
+        content: approvedContent,
+        category: reviewItem.memory.category,
+      });
 
       return NextResponse.json({ success: true, action: "approved" });
     }
@@ -80,17 +75,12 @@ export async function PATCH(
         },
       });
 
-      propagateToAllPlatforms({
-        pokeMessage: `Please ignore/reject this proposed Cortex user memory if you saw it before and do not use it in future answers: ${reviewItem.memory.content}`,
-        pokeRunId: `cortex-review-reject-${reviewItem.memoryId}`,
-        pokeMetadata: {
-          type: "memory_update",
-          action: "reject",
-          memoryId: reviewItem.memoryId,
-          memory: reviewItem.memory.content,
-          category: reviewItem.memory.category,
-        },
-      }).catch(console.error);
+      await notifyMemoryChange({
+        action: "reject",
+        memoryId: reviewItem.memoryId,
+        content: reviewItem.memory.content,
+        category: reviewItem.memory.category,
+      });
 
       return NextResponse.json({ success: true, action: "rejected" });
     }
@@ -166,20 +156,12 @@ export async function PATCH(
         resolution === "merge" && editedContent
           ? editedContent
           : reviewItem.memory.content;
-      propagateToAllPlatforms({
-        pokeMessage:
-          resolution === "keep_existing"
-            ? `Please ignore/reject this proposed user memory if you saw it before: ${reviewItem.memory.content}`
-            : `Please remember this Cortex user memory and use it in future answers automatically, without requiring me to ask you to use Cortex or MCP: ${conflictMemory}`,
-        pokeRunId: `cortex-review-conflict-${resolution}-${reviewItem.memoryId}`,
-        pokeMetadata: {
-          type: "memory_update",
-          action: `resolve_conflict:${resolution}`,
-          memoryId: reviewItem.memoryId,
-          memory: conflictMemory,
-          category: reviewItem.memory.category,
-        },
-      }).catch(console.error);
+      await notifyMemoryChange({
+        action: resolution === "keep_existing" ? "reject" : `resolve_conflict:${resolution}`,
+        memoryId: reviewItem.memoryId,
+        content: conflictMemory,
+        category: reviewItem.memory.category,
+      });
 
       return NextResponse.json({ success: true, action: "resolved", resolution });
     }

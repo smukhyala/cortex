@@ -194,6 +194,7 @@ async function scanClaudeDesktop(
   const servers = extractMcpServers(config);
   for (const [name, serverConfig] of Object.entries(servers)) {
     const service = identifyService(name);
+    if (name.toLowerCase() === "cortex") continue;
     const integration: DetectedIntegration = {
       id: `claude_desktop:${name}`,
       name: service?.name || formatServerName(name),
@@ -252,6 +253,7 @@ async function scanClaudeCode(
       const servers = extractMcpServers(mcpConfig);
       for (const [name, serverConfig] of Object.entries(servers)) {
         const service = identifyService(name);
+        if (name.toLowerCase() === "cortex") continue;
         const integration: DetectedIntegration = {
           id: `claude_code:${name}`,
           name: service?.name || formatServerName(name),
@@ -285,6 +287,7 @@ async function scanGlobalMcp(
   const servers = extractMcpServers(config);
   for (const [name, serverConfig] of Object.entries(servers)) {
     const service = identifyService(name);
+    if (name.toLowerCase() === "cortex") continue;
     const integration: DetectedIntegration = {
       id: `claude_code:${name}`,
       name: service?.name || formatServerName(name),
@@ -358,6 +361,7 @@ async function scanProjectMcp(
     const servers = extractMcpServers(config);
     for (const [name, serverConfig] of Object.entries(servers)) {
       const service = identifyService(name);
+      if (name.toLowerCase() === "cortex") continue;
       const integration: DetectedIntegration = {
         id: `claude_code:${name}`,
         name: service?.name || formatServerName(name),

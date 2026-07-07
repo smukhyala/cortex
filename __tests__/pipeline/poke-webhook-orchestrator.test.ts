@@ -162,6 +162,28 @@ describe("PokeWebhookOrchestrator", () => {
     );
   });
 
+  it("infers direct dog naming preferences without an LLM pass", async () => {
+    await new PokeWebhookOrchestrator().run({
+      event: "message.created",
+      threadId: "thread-5",
+      message: { role: "user", text: "I would name a dog Leslie" },
+    });
+
+    expect(mockedStructuredCall).not.toHaveBeenCalled();
+    expect(mockedIngestExchangeFacts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        origin: "poke",
+        facts: [
+          {
+            content: "User would name a dog Leslie.",
+            category: "preferences",
+            sensitive: false,
+          },
+        ],
+      })
+    );
+  });
+
   it("does not ingest when the webhook contains no user text", async () => {
     const result = await new PokeWebhookOrchestrator().run({
       event: "message.created",

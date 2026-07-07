@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { computeMemoryStrength } from "@/lib/memory-strength";
+import { notifyMemoryChange } from "@/services/memory-change";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -45,6 +46,13 @@ export async function POST(req: NextRequest) {
       status: "active",
       approvedAt: new Date(),
     },
+  });
+
+  await notifyMemoryChange({
+    action: "create",
+    memoryId: memory.id,
+    content: memory.content,
+    category: memory.category,
   });
 
   return NextResponse.json(memory, { status: 201 });
