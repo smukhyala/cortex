@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Search, Download, Archive, Brain, Pencil, Sparkles, GitMerge, X, Zap, Clock } from "lucide-react";
+import { Search, Download, Archive, Brain, Pencil, Sparkles, GitMerge, X, Zap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 interface Memory {
@@ -15,6 +15,7 @@ interface Memory {
   sensitive: boolean;
   referenceCount: number;
   lastReferencedAt: string;
+  strength: number;
   createdAt: string;
   source: { name: string; type: string; config: string };
   conversation: { title: string; externalId: string } | null;
@@ -213,6 +214,18 @@ export default function MemoriesPage() {
     return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   }
 
+  function strengthBarColor(strength: number): string {
+    if (strength >= 0.8) return "bg-amber-400";
+    if (strength >= 0.4) return "bg-lime";
+    return "bg-muted-foreground/20";
+  }
+
+  function strengthTooltip(memory: Memory): string {
+    const date = new Date(memory.lastReferencedAt);
+    const dateStr = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    return `Referenced ${memory.referenceCount}x · Last seen ${dateStr} · Strength ${memory.strength.toFixed(2)}`;
+  }
+
   const categoryCounts = new Map<string, number>();
   for (const m of memories) {
     categoryCounts.set(m.category, (categoryCounts.get(m.category) || 0) + 1);
@@ -407,10 +420,17 @@ export default function MemoriesPage() {
             </div>
           ) : (
             filtered.map((memory) => (
-              <div key={memory.id} className="maze-card group">
+              <div
+                key={memory.id}
+                className={`maze-card group relative overflow-hidden ${
+                  memory.strength < 0.1 ? "opacity-60" : ""
+                } ${memory.strength > 0.7 ? "border-lime/30" : ""}`}
+              >
                 <div className="flex items-start justify-between p-5">
                   <div className="min-w-0 flex-1">
-                    <p className="text-[14px] leading-relaxed">{memory.content}</p>
+                    <p className={`text-[14px] leading-relaxed ${memory.strength > 0.7 ? "font-medium" : ""}`}>
+                      {memory.content}
+                    </p>
                     <div className="flex items-center gap-2 mt-2.5 flex-wrap">
                       <span className={`maze-tag ${categoryColors[memory.category] || ""}`}>
                         {memory.category.replace("_", " ")}
@@ -434,13 +454,6 @@ export default function MemoriesPage() {
                       {memory.sensitive && (
                         <span className="maze-tag bg-red-50 text-red-600">sensitive</span>
                       )}
-                      <span className="maze-tag bg-muted text-muted-foreground">
-                        referenced {memory.referenceCount ?? 1}x
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        last {formatLastReferenced(memory.lastReferencedAt || memory.createdAt)}
-                      </span>
                     </div>
                   </div>
                   <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-4">
@@ -452,6 +465,12 @@ export default function MemoriesPage() {
                     </button>
                   </div>
                 </div>
+                {/* Heat bar */}
+                <div
+                  className={`absolute bottom-0 left-0 h-1 transition-all duration-500 ${strengthBarColor(memory.strength)}`}
+                  style={{ width: `${(memory.strength * 100).toFixed(1)}%` }}
+                  title={strengthTooltip(memory)}
+                />
               </div>
             ))
           )}
