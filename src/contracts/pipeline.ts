@@ -79,10 +79,18 @@ export const DetectedConflictSchema = z.object({
 });
 export type DetectedConflict = z.infer<typeof DetectedConflictSchema>;
 
+export const DuplicateReferenceSchema = z.object({
+  existingMemoryId: z.string(),
+  newMemory: ExtractedMemorySchema,
+  reasoning: z.string(),
+});
+export type DuplicateReference = z.infer<typeof DuplicateReferenceSchema>;
+
 export const DeduplicationOutputSchema = z.object({
   clean: z.array(ExtractedMemorySchema),
   conflicts: z.array(DetectedConflictSchema),
   duplicatesDropped: z.number(),
+  duplicateReferences: z.array(DuplicateReferenceSchema).default([]),
 });
 export type DeduplicationOutput = z.infer<typeof DeduplicationOutputSchema>;
 

@@ -112,6 +112,7 @@ export async function deduplicateMemories(
 }> {
   const clean: ExtractedMemory[] = [];
   const conflicts: DeduplicationOutput["conflicts"] = [];
+  const duplicateReferences: NonNullable<DeduplicationOutput["duplicateReferences"]> = [];
   let duplicatesDropped = 0;
   let totalInput = 0;
   let totalOutput = 0;
@@ -150,6 +151,11 @@ export async function deduplicateMemories(
           case "duplicate":
             // Silently drop — the fact already exists
             duplicatesDropped++;
+            duplicateReferences.push({
+              existingMemoryId: candidate.id,
+              newMemory: newMem,
+              reasoning: comparison.reasoning,
+            });
             conflictFound = true;
             break;
 
@@ -217,7 +223,7 @@ export async function deduplicateMemories(
   }
 
   return {
-    output: { clean, conflicts, duplicatesDropped },
+    output: { clean, conflicts, duplicatesDropped, duplicateReferences },
     tokens: { input: totalInput, output: totalOutput },
   };
 }

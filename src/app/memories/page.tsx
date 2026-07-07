@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Search, Download, Archive, Brain, Pencil, Sparkles, GitMerge, X, Zap } from "lucide-react";
+import { Search, Download, Archive, Brain, Pencil, Sparkles, GitMerge, X, Zap, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 interface Memory {
@@ -13,6 +13,8 @@ interface Memory {
   confidence: number;
   temporality: string;
   sensitive: boolean;
+  referenceCount: number;
+  lastReferencedAt: string;
   createdAt: string;
   source: { name: string; type: string; config: string };
   conversation: { title: string; externalId: string } | null;
@@ -203,6 +205,12 @@ export default function MemoriesPage() {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function formatLastReferenced(value: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "unknown";
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   }
 
   const categoryCounts = new Map<string, number>();
@@ -426,6 +434,13 @@ export default function MemoriesPage() {
                       {memory.sensitive && (
                         <span className="maze-tag bg-red-50 text-red-600">sensitive</span>
                       )}
+                      <span className="maze-tag bg-muted text-muted-foreground">
+                        referenced {memory.referenceCount ?? 1}x
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        last {formatLastReferenced(memory.lastReferencedAt || memory.createdAt)}
+                      </span>
                     </div>
                   </div>
                   <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-4">

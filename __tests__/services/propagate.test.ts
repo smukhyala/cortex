@@ -299,6 +299,97 @@ describe("propagateToAllPlatforms", () => {
     expect(pokeDest).toBeUndefined();
   });
 
+  it("can skip destinations during peer exchange propagation", async () => {
+    process.env.POKE_API_KEY = "test-poke-key";
+    mockedPrisma.source.findMany.mockResolvedValue([
+      {
+        id: "src-1",
+        name: "Claude Code",
+        type: "claude_code",
+        status: "active",
+        config: JSON.stringify({ filePath: "/tmp/CLAUDE.md" }),
+      } as any,
+    ]);
+    mockedFs.statSync.mockImplementation(() => {
+      throw new Error("not found");
+    });
+    mockedWriteClaudeExport.mockResolvedValue(undefined);
+
+    const result = await propagateToAllPlatforms({ skipDestinations: ["poke"] });
+
+    expect(mockedWriteClaudeExport).toHaveBeenCalledOnce();
+    expect(mockedPushToPoke).not.toHaveBeenCalled();
+    expect(result.destinations.some((destination) => destination.type === "claude_code")).toBe(true);
+    expect(result.destinations.some((destination) => destination.type === "poke")).toBe(false);
+  });
+
+  it("filters destination memories with exchange policies", async () => {
+    mockedPrisma.memory.findMany.mockResolvedValue([
+      ...sampleMemories,
+      { content: "User studies design at school", category: "education_career", sensitive: false },
+    ] as any);
+    mockedPrisma.source.findMany.mockResolvedValue([
+      {
+        id: "poke-src",
+        name: "Poke",
+        type: "poke",
+        status: "active",
+        config: JSON.stringify({
+          apiKey: "test-poke-key",
+          exchangePolicies: [
+            {
+              destination: "poke",
+              mode: "block",
+              allowedCategories: [],
+              blockedCategories: ["education_career"],
+            },
+          ],
+        }),
+      } as any,
+    ]);
+    mockedPushToPoke.mockResolvedValue({ success: true, message: "OK" });
+
+    await propagateToAllPlatforms();
+
+    expect(mockedPushToPoke).toHaveBeenCalledWith(
+      expect.not.arrayContaining([
+        expect.objectContaining({ category: "education_career" }),
+      ]),
+      "test-poke-key",
+      expect.any(Object)
+    );
+  });
+
+  it("does not send targeted Poke messages for blocked categories", async () => {
+    mockedPrisma.source.findMany.mockResolvedValue([
+      {
+        id: "poke-src",
+        name: "Poke",
+        type: "poke",
+        status: "active",
+        config: JSON.stringify({
+          apiKey: "test-poke-key",
+          exchangePolicies: [
+            {
+              destination: "poke",
+              mode: "block",
+              allowedCategories: [],
+              blockedCategories: ["education_career"],
+            },
+          ],
+        }),
+      } as any,
+    ]);
+
+    const result = await propagateToAllPlatforms({
+      pokeMessage: "Please remember: User studies at Berkeley",
+      pokeMetadata: { category: "education_career" },
+    });
+
+    expect(mockedPushToPoke).not.toHaveBeenCalled();
+    expect(result.destinations[0]).toMatchObject({ type: "poke", success: true });
+  });
+
   it("logs activity summary on completion", async () => {
     mockedPrisma.source.findMany.mockResolvedValue([
       {

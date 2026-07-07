@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Plus, Trash2, CheckCircle, XCircle, Zap, Server, RefreshCw, User, HardDrive, Loader2, Mail, FileText, StickyNote, MessageSquare, Plug, Settings2, Unplug, ArrowLeft, Scan, Sparkles, ExternalLink, Pencil, Check, X, AlertTriangle } from "lucide-react";
 import { FileUpload } from "@/components/features/file-upload";
@@ -69,6 +70,28 @@ interface DetectedIntegrationData {
   mcpServerName: string;
   transport: string;
   hasConnector: boolean;
+}
+
+interface CategoryDef {
+  slug: string;
+  label: string;
+  color: string;
+}
+
+interface ExchangePolicy {
+  destination: string;
+  mode: "all" | "allow_only" | "block";
+  allowedCategories: string[];
+  blockedCategories: string[];
+  naturalLanguageRule?: string;
+}
+
+interface ExchangeDestinationConfig {
+  sourceId: string;
+  sourceName: string;
+  sourceType: string;
+  destination: string;
+  policy: ExchangePolicy;
 }
 
 const DETECTED_VIA_COLORS: Record<string, string> = {
@@ -141,12 +164,18 @@ export default function SettingsPage() {
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
   const [editingLabelValue, setEditingLabelValue] = useState("");
   const [resetting, setResetting] = useState(false);
+  const [policyCategories, setPolicyCategories] = useState<CategoryDef[]>([]);
+  const [exchangeDestinations, setExchangeDestinations] = useState<ExchangeDestinationConfig[]>([]);
+  const [policyDrafts, setPolicyDrafts] = useState<Record<string, ExchangePolicy>>({});
+  const [policyText, setPolicyText] = useState<Record<string, string>>({});
+  const [savingPolicyId, setSavingPolicyId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSources();
     fetchStatus();
     fetchAccounts();
     fetchConnectors();
+    fetchExchangePolicies();
     detectIntegrations();
   }, []);
 
@@ -181,6 +210,33 @@ export default function SettingsPage() {
       setConnectors(await res.json());
     } catch {
       // Connectors are optional — don't show error on initial load
+    }
+  }
+
+  async function fetchExchangePolicies() {
+    try {
+      const res = await fetch("/api/exchange/policies");
+      const data = await res.json();
+      setPolicyCategories(data.categories || []);
+      setExchangeDestinations(data.destinations || []);
+      setPolicyDrafts(
+        Object.fromEntries(
+          (data.destinations || []).map((item: ExchangeDestinationConfig) => [
+            item.sourceId,
+            item.policy,
+          ])
+        )
+      );
+      setPolicyText(
+        Object.fromEntries(
+          (data.destinations || []).map((item: ExchangeDestinationConfig) => [
+            item.sourceId,
+            item.policy.naturalLanguageRule || "",
+          ])
+        )
+      );
+    } catch {
+      toast.error("Failed to load exchange policies");
     }
   }
 
@@ -413,6 +469,67 @@ export default function SettingsPage() {
     }
   }
 
+  function updatePolicyDraft(sourceId: string, updater: (policy: ExchangePolicy) => ExchangePolicy) {
+    setPolicyDrafts((prev) => {
+      const current = prev[sourceId];
+      if (!current) return prev;
+      return { ...prev, [sourceId]: updater(current) };
+    });
+  }
+
+  function togglePolicyCategory(sourceId: string, category: string) {
+    updatePolicyDraft(sourceId, (policy) => {
+      const key = policy.mode === "allow_only" ? "allowedCategories" : "blockedCategories";
+      const current = policy[key];
+      const next = current.includes(category)
+        ? current.filter((item) => item !== category)
+        : [...current, category];
+      return { ...policy, [key]: next };
+    });
+  }
+
+  async function savePolicy(destinationConfig: ExchangeDestinationConfig, useNaturalLanguage: boolean) {
+    const draft = policyDrafts[destinationConfig.sourceId];
+    if (!draft) return;
+
+    setSavingPolicyId(destinationConfig.sourceId);
+    try {
+      const body = useNaturalLanguage
+        ? {
+            sourceId: destinationConfig.sourceId,
+            destination: destinationConfig.destination,
+            naturalLanguageRule: policyText[destinationConfig.sourceId] || "",
+          }
+        : {
+            sourceId: destinationConfig.sourceId,
+            destination: destinationConfig.destination,
+            mode: draft.mode,
+            allowedCategories: draft.allowedCategories,
+            blockedCategories: draft.blockedCategories,
+            naturalLanguageRule: policyText[destinationConfig.sourceId] || draft.naturalLanguageRule,
+          };
+
+      const res = await fetch("/api/exchange/policies", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Failed to save policy");
+        return;
+      }
+
+      toast.success(`Updated ${destinationConfig.sourceName} exchange policy`);
+      await fetchExchangePolicies();
+    } catch {
+      toast.error("Failed to save policy");
+    } finally {
+      setSavingPolicyId(null);
+    }
+  }
+
   const connections = status?.connections;
 
   return (
@@ -463,8 +580,114 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* ── Detected Integrations ── */}
+      {/* ── Exchange Policies ── */}
       <section data-animate="2">
+        <div className="mb-4">
+          <p className="maze-eyebrow">Exchange Policies</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Control which memory folders flow into each service. Use natural language or select categories manually.
+          </p>
+        </div>
+
+        {exchangeDestinations.length === 0 ? (
+          <div className="maze-card p-5">
+            <p className="text-sm text-muted-foreground">
+              Add a Claude Code or Poke account to configure what Cortex shares with it.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {exchangeDestinations.map((destinationConfig) => {
+              const draft = policyDrafts[destinationConfig.sourceId] || destinationConfig.policy;
+              const activeCategories =
+                draft.mode === "allow_only" ? draft.allowedCategories : draft.blockedCategories;
+              return (
+                <div key={destinationConfig.sourceId} className="maze-card p-5 space-y-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium tracking-tight">{destinationConfig.sourceName}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {SOURCE_TYPE_DISPLAY[destinationConfig.sourceType] || destinationConfig.sourceType}
+                      </p>
+                    </div>
+                    <span className="maze-tag bg-lime/10 text-lime">
+                      {draft.mode === "all" ? "All categories" : draft.mode === "allow_only" ? "Allow selected" : "Block selected"}
+                    </span>
+                  </div>
+
+                  <div>
+                    <p className="maze-eyebrow mb-2">Natural Language Rule</p>
+                    <Textarea
+                      value={policyText[destinationConfig.sourceId] || ""}
+                      onChange={(e) => setPolicyText((prev) => ({ ...prev, [destinationConfig.sourceId]: e.target.value }))}
+                      rows={2}
+                      placeholder='e.g. "Do not send school or research memories to Poke"'
+                    />
+                    <div className="flex justify-end mt-2">
+                      <button
+                        className="maze-btn maze-btn-outline h-8 text-xs"
+                        onClick={() => savePolicy(destinationConfig, true)}
+                        disabled={savingPolicyId === destinationConfig.sourceId || !(policyText[destinationConfig.sourceId] || "").trim()}
+                      >
+                        {savingPolicyId === destinationConfig.sourceId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                        Apply Rule
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="maze-eyebrow mb-2">Manual Folder Selection</p>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {[
+                        { value: "all", label: "Send all" },
+                        { value: "allow_only", label: "Only selected" },
+                        { value: "block", label: "Block selected" },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          className={`maze-btn h-8 text-xs ${draft.mode === option.value ? "" : "maze-btn-outline"}`}
+                          onClick={() => updatePolicyDraft(destinationConfig.sourceId, (policy) => ({ ...policy, mode: option.value as ExchangePolicy["mode"] }))}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {draft.mode !== "all" && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {policyCategories.map((category) => (
+                          <label key={category.slug} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-[13px] cursor-pointer hover:bg-muted/50">
+                            <input
+                              type="checkbox"
+                              checked={activeCategories.includes(category.slug)}
+                              onChange={() => togglePolicyCategory(destinationConfig.sourceId, category.slug)}
+                            />
+                            <span>{category.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex justify-end mt-3">
+                      <button
+                        className="maze-btn h-8 text-xs"
+                        onClick={() => savePolicy(destinationConfig, false)}
+                        disabled={savingPolicyId === destinationConfig.sourceId}
+                      >
+                        {savingPolicyId === destinationConfig.sourceId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                        Save Manual Policy
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ── Detected Integrations ── */}
+      <section data-animate="3">
         <div className="flex items-center justify-between mb-4">
           <div>
             <p className="maze-eyebrow">Detected Integrations</p>

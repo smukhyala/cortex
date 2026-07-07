@@ -5,9 +5,7 @@ import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import path from "path";
 import { CATEGORY_LABELS, MEMORY_CATEGORIES, type MemoryCategory } from "@/contracts/memory";
-import type { ExtractedMemory } from "@/contracts/pipeline";
-import { deduplicateMemories } from "@/pipeline/deduplicate";
-import { commit } from "@/pipeline/commit";
+import { ingestExchangeFacts } from "@/services/exchange-ingest";
 
 // ─── Database ───────────────────────────────────────────────────────────────
 
@@ -228,30 +226,11 @@ function inferCategory(topic: string): MemoryCategory {
   return "identity"; // safe default
 }
 
-/** Get or create a persistent "claude_desktop" source for MCP-ingested memories */
-async function getOrCreateMcpSource(): Promise<string> {
-  const existing = await prisma.source.findFirst({
-    where: { type: "claude_desktop", name: "Claude Desktop (MCP)" },
-    select: { id: true },
-  });
-  if (existing) return existing.id;
-
-  const source = await prisma.source.create({
-    data: {
-      type: "claude_desktop",
-      name: "Claude Desktop (MCP)",
-      status: "active",
-      config: JSON.stringify({ transport: "mcp_stdio" }),
-    },
-  });
-  return source.id;
-}
-
 // ─── Tool: cortex_save_conversation ─────────────────────────────────────────
 
 server.tool(
   "cortex_save_conversation",
-  "Save memories from the current conversation. Call this when you learn durable facts about the user (preferences, goals, projects, background, etc). Each key_fact becomes a candidate memory that goes through deduplication.",
+  "Save and exchange memories from the current conversation. Call this when you learn durable facts about the user; Cortex stores them as active memories and propagates them to the user's other AI tools.",
   {
     summary: z.string().describe("A brief summary of what was discussed in this conversation"),
     key_facts: z.array(z.string()).describe(
@@ -260,8 +239,11 @@ server.tool(
     topic: z.string().describe(
       "The main topic/category of the conversation (e.g., 'projects', 'preferences', 'career', 'goals', 'identity', 'workflows')"
     ),
+    origin: z.enum(["claude", "poke"]).optional().describe(
+      "Which assistant learned these facts. Defaults to 'claude' for stdio MCP."
+    ),
   },
-  async ({ summary, key_facts, topic }) => {
+  async ({ summary, key_facts, topic, origin }) => {
     if (key_facts.length === 0) {
       return {
         content: [{ type: "text" as const, text: "No facts provided. Nothing to save." }],
@@ -269,69 +251,24 @@ server.tool(
     }
 
     try {
-      const sourceId = await getOrCreateMcpSource();
       const category = inferCategory(topic);
-
-      // Build ExtractedMemory objects from the key facts
-      const extractedMemories: ExtractedMemory[] = key_facts.map((fact) => ({
-        content: fact,
-        subject: "user",
-        category,
-        confidence: 0.85,
-        verbatimQuote: fact,
-        temporality: "durable" as const,
-        sensitive: false,
-        isCorrection: false,
-      }));
-
-      // Run through deduplication pipeline
-      let clean = extractedMemories;
-      let duplicatesDropped = 0;
-      let conflicts: Awaited<ReturnType<typeof deduplicateMemories>>["output"]["conflicts"] = [];
-
-      try {
-        const dedupResult = await deduplicateMemories(extractedMemories);
-        clean = dedupResult.output.clean;
-        conflicts = dedupResult.output.conflicts;
-        duplicatesDropped = dedupResult.output.duplicatesDropped;
-      } catch (dedupError) {
-        // If dedup fails (e.g., no API key), skip it and commit all as pending
-        console.error("Dedup failed, committing all as pending:", dedupError);
-      }
-
-      // Commit clean memories and handle conflicts
-      const commitResult = await commit({
-        sourceId,
-        clean,
-        conflicts,
-        conversationMap: new Map(),
+      const result = await ingestExchangeFacts({
+        origin: origin ?? "claude",
+        summary,
+        topic,
+        facts: key_facts.map((fact) => ({
+          content: fact,
+          category,
+        })),
       });
 
-      // Log activity
-      await prisma.activityLog.create({
-        data: {
-          action: "mcp_save_conversation",
-          summary: `Claude Desktop saved ${key_facts.length} facts from conversation about "${topic}"`,
-          details: JSON.stringify({
-            summary,
-            topic,
-            factsReceived: key_facts.length,
-            memoriesCreated: commitResult.memoriesCreated,
-            duplicatesDropped,
-            conflictsFound: commitResult.conflictsCreated,
-            autoApproved: commitResult.autoApproved,
-            autoSuperseded: commitResult.autoSuperseded,
-          }),
-        },
-      });
-
+      const successCount = result.propagatedDestinations.filter((destination) => destination.success).length;
       const parts: string[] = [
-        `Saved ${commitResult.memoriesCreated} new memories (pending review).`,
+        `Saved ${result.memoriesCreated} active exchange memories.`,
       ];
-      if (duplicatesDropped > 0) parts.push(`${duplicatesDropped} duplicates skipped.`);
-      if (commitResult.autoApproved > 0) parts.push(`${commitResult.autoApproved} auto-merged as refinements.`);
-      if (commitResult.autoSuperseded > 0) parts.push(`${commitResult.autoSuperseded} auto-superseded.`);
-      if (commitResult.conflictsCreated > 0) parts.push(`${commitResult.conflictsCreated} conflicts need review.`);
+      if (result.referencesUpdated > 0) parts.push(`${result.referencesUpdated} existing memories reinforced.`);
+      if (result.conflictsCreated > 0) parts.push(`${result.conflictsCreated} conflicts need review.`);
+      parts.push(`Propagated to ${successCount}/${result.propagatedDestinations.length} destinations.`);
 
       return {
         content: [{ type: "text" as const, text: parts.join(" ") }],
@@ -345,12 +282,11 @@ server.tool(
     }
   }
 );
-
 // ─── Tool: cortex_log_context ───────────────────────────────────────────────
 
 server.tool(
   "cortex_log_context",
-  "Log user facts learned during conversation — a lightweight way to push context to Cortex without needing a full summary. Each fact is saved as a pending memory.",
+  "Log and exchange user facts learned during conversation. Cortex stores each fact as active memory and propagates it to the user's other AI tools.",
   {
     facts: z.array(
       z.object({
@@ -360,8 +296,11 @@ server.tool(
         ),
       })
     ).describe("Array of user facts to save"),
+    origin: z.enum(["claude", "poke"]).optional().describe(
+      "Which assistant learned these facts. Defaults to 'claude' for stdio MCP."
+    ),
   },
-  async ({ facts }) => {
+  async ({ facts, origin }) => {
     if (facts.length === 0) {
       return {
         content: [{ type: "text" as const, text: "No facts provided. Nothing to log." }],
@@ -369,63 +308,21 @@ server.tool(
     }
 
     try {
-      const sourceId = await getOrCreateMcpSource();
-
-      // Build ExtractedMemory objects
-      const extractedMemories: ExtractedMemory[] = facts.map((f) => ({
-        content: f.content,
-        subject: "user",
-        category: f.category || "identity",
-        confidence: 0.8,
-        verbatimQuote: f.content,
-        temporality: "durable" as const,
-        sensitive: false,
-        isCorrection: false,
-      }));
-
-      // Run through deduplication
-      let clean = extractedMemories;
-      let duplicatesDropped = 0;
-      let conflicts: Awaited<ReturnType<typeof deduplicateMemories>>["output"]["conflicts"] = [];
-
-      try {
-        const dedupResult = await deduplicateMemories(extractedMemories);
-        clean = dedupResult.output.clean;
-        conflicts = dedupResult.output.conflicts;
-        duplicatesDropped = dedupResult.output.duplicatesDropped;
-      } catch (dedupError) {
-        console.error("Dedup failed, committing all as pending:", dedupError);
-      }
-
-      // Commit
-      const commitResult = await commit({
-        sourceId,
-        clean,
-        conflicts,
-        conversationMap: new Map(),
+      const result = await ingestExchangeFacts({
+        origin: origin ?? "claude",
+        facts: facts.map((fact) => ({
+          content: fact.content,
+          category: fact.category,
+        })),
       });
 
-      // Log activity
-      await prisma.activityLog.create({
-        data: {
-          action: "mcp_log_context",
-          summary: `Claude Desktop logged ${facts.length} user facts`,
-          details: JSON.stringify({
-            factsReceived: facts.length,
-            memoriesCreated: commitResult.memoriesCreated,
-            duplicatesDropped,
-            autoApproved: commitResult.autoApproved,
-            autoSuperseded: commitResult.autoSuperseded,
-          }),
-        },
-      });
-
+      const successCount = result.propagatedDestinations.filter((destination) => destination.success).length;
       const parts: string[] = [
-        `Logged ${commitResult.memoriesCreated} facts as pending memories.`,
+        `Logged ${result.memoriesCreated} active exchange memories.`,
       ];
-      if (duplicatesDropped > 0) parts.push(`${duplicatesDropped} duplicates skipped.`);
-      if (commitResult.autoApproved > 0) parts.push(`${commitResult.autoApproved} refinements auto-merged.`);
-      if (commitResult.autoSuperseded > 0) parts.push(`${commitResult.autoSuperseded} superseded.`);
+      if (result.referencesUpdated > 0) parts.push(`${result.referencesUpdated} existing memories reinforced.`);
+      if (result.conflictsCreated > 0) parts.push(`${result.conflictsCreated} conflicts need review.`);
+      parts.push(`Propagated to ${successCount}/${result.propagatedDestinations.length} destinations.`);
 
       return {
         content: [{ type: "text" as const, text: parts.join(" ") }],

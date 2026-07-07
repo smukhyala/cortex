@@ -126,6 +126,7 @@ export async function runPipeline(input: {
       sourceId: input.sourceId,
       clean: dedup.output.clean,
       conflicts: dedup.output.conflicts,
+      duplicateReferences: dedup.output.duplicateReferences,
       conversationMap,
     });
 

@@ -50,6 +50,8 @@ model Memory {
   verbatimQuote  String?
   temporality    String    @default("durable") // durable | current | expired
   sensitive      Boolean   @default(false)
+  referenceCount Int       @default(1)
+  lastReferencedAt DateTime @default(now())
 
   sourceId       String
   source         Source    @relation(fields: [sourceId], references: [id])

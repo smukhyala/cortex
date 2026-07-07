@@ -123,6 +123,28 @@ describe("commit", () => {
     );
   });
 
+  it("can create clean exchange memories as active without review items", async () => {
+    const result = await commit({
+      sourceId: "src-1",
+      clean: [makeMemory({ content: "User's dog is named Brian", category: "relationships" })],
+      conflicts: [],
+      conversationMap: new Map(),
+      initialStatus: "active",
+    });
+
+    expect(result.memoriesCreated).toBe(1);
+    expect(result.reviewItemsCreated).toBe(0);
+    expect(mockedPrisma.memory.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "active",
+          approvedAt: expect.any(Date),
+        }),
+      })
+    );
+    expect(mockedPrisma.reviewItem.create).not.toHaveBeenCalled();
+  });
+
   it("auto-approves refinements of existing memories", async () => {
     const refinement = makeConflict("refinement", {
       mergedContent: "User prefers TypeScript for all web projects",
@@ -250,6 +272,40 @@ describe("commit", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           action: "auto_supersede",
+        }),
+      })
+    );
+  });
+
+  it("increments reference tracking for duplicate references", async () => {
+    const result = await commit({
+      sourceId: "src-1",
+      clean: [],
+      conflicts: [],
+      duplicateReferences: [
+        {
+          existingMemoryId: "existing-mem-1",
+          newMemory: makeMemory({ content: "User prefers TypeScript" }),
+          reasoning: "Same fact was mentioned again",
+        },
+      ],
+      conversationMap: new Map(),
+    });
+
+    expect(result.referencesUpdated).toBe(1);
+    expect(mockedPrisma.memory.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "existing-mem-1" },
+        data: expect.objectContaining({
+          referenceCount: { increment: 1 },
+          lastReferencedAt: expect.any(Date),
+        }),
+      })
+    );
+    expect(mockedPrisma.activityLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "memory_reference_repeated",
         }),
       })
     );

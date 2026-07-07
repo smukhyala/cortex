@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
+  Home,
   Brain,
   Inbox,
   Settings,
@@ -24,7 +25,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/", label: "Home", icon: Home },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/memories", label: "Memories", icon: Brain },
   { href: "/review", label: "Review Queue", icon: Inbox, showBadge: true },
   { href: "/settings", label: "Settings", icon: Settings },

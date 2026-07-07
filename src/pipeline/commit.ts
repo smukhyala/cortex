@@ -11,6 +11,7 @@ export interface CommitResult {
   conflictsCreated: number;
   autoApproved: number;
   autoSuperseded: number;
+  referencesUpdated: number;
 }
 
 /**
@@ -27,13 +28,43 @@ export async function commit(params: {
   sourceId: string;
   clean: ExtractedMemory[];
   conflicts: DeduplicationOutput["conflicts"];
+  duplicateReferences?: DeduplicationOutput["duplicateReferences"];
   conversationMap: Map<string, string>; // externalId -> DB conversationId
+  initialStatus?: "pending" | "active";
 }): Promise<CommitResult> {
   let memoriesCreated = 0;
   let reviewItemsCreated = 0;
   let conflictsCreated = 0;
   let autoApproved = 0;
   let autoSuperseded = 0;
+  let referencesUpdated = 0;
+  const initialStatus = params.initialStatus ?? "pending";
+
+  async function markReferenced(memoryId: string) {
+    await prisma.memory.update({
+      where: { id: memoryId },
+      data: {
+        referenceCount: { increment: 1 },
+        lastReferencedAt: new Date(),
+      },
+    });
+    referencesUpdated++;
+  }
+
+  for (const duplicate of params.duplicateReferences ?? []) {
+    await markReferenced(duplicate.existingMemoryId);
+    await prisma.activityLog.create({
+      data: {
+        action: "memory_reference_repeated",
+        summary: "Existing memory was referenced again",
+        details: JSON.stringify({
+          existingMemoryId: duplicate.existingMemoryId,
+          newContent: duplicate.newMemory.content,
+          reasoning: duplicate.reasoning,
+        }),
+      },
+    });
+  }
 
   // 1. Create memories for clean (non-conflicting) extracted memories
   for (const mem of params.clean) {
@@ -53,21 +84,24 @@ export async function commit(params: {
         sensitive: mem.sensitive,
         sourceId: params.sourceId,
         ...(conversationId ? { conversationId } : {}),
-        status: "pending",
+        status: initialStatus,
+        ...(initialStatus === "active" ? { approvedAt: new Date() } : {}),
       },
     });
     memoriesCreated++;
 
-    // Create review item for each pending memory
-    await prisma.reviewItem.create({
-      data: {
-        memoryId: memory.id,
-        type: "new_memory",
-        title: `New: ${mem.content.slice(0, 80)}${mem.content.length > 80 ? "..." : ""}`,
-        status: "pending",
-      },
-    });
-    reviewItemsCreated++;
+    if (initialStatus === "pending") {
+      // Create review item for each pending memory
+      await prisma.reviewItem.create({
+        data: {
+          memoryId: memory.id,
+          type: "new_memory",
+          title: `New: ${mem.content.slice(0, 80)}${mem.content.length > 80 ? "..." : ""}`,
+          status: "pending",
+        },
+      });
+      reviewItemsCreated++;
+    }
   }
 
   // 2. Handle conflicts
@@ -87,10 +121,13 @@ export async function commit(params: {
         where: { id: conflict.existingMemoryId },
         data: {
           content: merged,
+          referenceCount: { increment: 1 },
+          lastReferencedAt: new Date(),
           updatedAt: new Date(),
         },
       });
       autoApproved++;
+      referencesUpdated++;
 
       // Log activity so the user can see what was auto-merged
       await prisma.activityLog.create({
@@ -117,10 +154,13 @@ export async function commit(params: {
         where: { id: conflict.existingMemoryId },
         data: {
           content: merged,
+          referenceCount: { increment: 1 },
+          lastReferencedAt: new Date(),
           updatedAt: new Date(),
         },
       });
       autoSuperseded++;
+      referencesUpdated++;
 
       // Log activity so the user can see what was auto-replaced
       await prisma.activityLog.create({
@@ -183,5 +223,5 @@ export async function commit(params: {
     reviewItemsCreated++;
   }
 
-  return { memoriesCreated, reviewItemsCreated, conflictsCreated, autoApproved, autoSuperseded };
+  return { memoriesCreated, reviewItemsCreated, conflictsCreated, autoApproved, autoSuperseded, referencesUpdated };
 }

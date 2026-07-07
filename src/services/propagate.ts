@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { pushToPoke } from "@/exporters/poke";
 import { writeClaudeExport } from "@/exporters/claude";
 import { formatForChatGPT } from "@/exporters/chatgpt";
+import { filterMemoriesForDestination, getExchangePolicy } from "@/services/exchange-policy";
 
 interface PropagationResult {
   destinations: Array<{
@@ -19,6 +20,7 @@ interface PropagationOptions {
   pokeMessage?: string;
   pokeMetadata?: Record<string, unknown>;
   pokeRunId?: string;
+  skipDestinations?: string[];
 }
 
 function readConfig(config: string | null | undefined): Record<string, unknown> {
@@ -37,12 +39,23 @@ function getPokeKeyKind(apiKey: string): "legacy_pk" | "v2" {
   return apiKey.startsWith("pk_") ? "legacy_pk" : "v2";
 }
 
+function targetedCategory(options: PropagationOptions): string | null {
+  const category = options.pokeMetadata?.category;
+  return typeof category === "string" ? category : null;
+}
+
 export async function propagateToAllPlatforms(
   options: PropagationOptions = {}
 ): Promise<PropagationResult> {
   const memories = await prisma.memory.findMany({
     where: { status: "active" },
-    select: { content: true, category: true, sensitive: true },
+    select: {
+      content: true,
+      category: true,
+      sensitive: true,
+      referenceCount: true,
+      lastReferencedAt: true,
+    },
   });
 
   const sources = await prisma.source.findMany({
@@ -51,11 +64,15 @@ export async function propagateToAllPlatforms(
 
   const results: PropagationResult = { destinations: [] };
   const startTime = Date.now();
+  const skipDestinations = new Set(options.skipDestinations ?? []);
 
   // Claude Code sources — write to CLAUDE.md
   const claudeCodeSources = sources.filter((s) => s.type === "claude_code");
   for (const source of claudeCodeSources) {
+    if (skipDestinations.has("claude_code")) continue;
     try {
+      const policy = getExchangePolicy(source.config, "claude_code");
+      const destinationMemories = filterMemoriesForDestination(memories, policy);
       const config = readConfig(source.config);
       const configuredPath = config.filePath || config.path;
       if (typeof configuredPath === "string") {
@@ -68,7 +85,7 @@ export async function propagateToAllPlatforms(
         } catch {
           // Path doesn't exist yet — assume it's a file path
         }
-        await writeClaudeExport(filePath, memories);
+        await writeClaudeExport(filePath, destinationMemories);
         results.destinations.push({
           type: "claude_code",
           name: source.name,
@@ -78,7 +95,12 @@ export async function propagateToAllPlatforms(
           data: {
             destination: "claude_code",
             status: "success",
-            memoriesCount: memories.length,
+            memoriesCount: destinationMemories.length,
+            details: JSON.stringify({
+              target: source.name,
+              policy,
+              filteredOut: memories.length - destinationMemories.length,
+            }),
             durationMs: Date.now() - startTime,
           },
         });
@@ -109,18 +131,48 @@ export async function propagateToAllPlatforms(
     .map((source) => {
       const apiKey = readConfig(source.config).apiKey;
       return typeof apiKey === "string" && apiKey.length > 0
-        ? { name: source.name, apiKey }
+        ? { name: source.name, apiKey, config: source.config }
         : null;
     })
-    .filter((target): target is { name: string; apiKey: string } => target !== null);
+    .filter((target): target is { name: string; apiKey: string; config: string } => target !== null);
 
   if (pokeTargets.length === 0 && process.env.POKE_API_KEY) {
-    pokeTargets.push({ name: "Poke", apiKey: process.env.POKE_API_KEY });
+    pokeTargets.push({ name: "Poke", apiKey: process.env.POKE_API_KEY, config: "{}" });
   }
 
   for (const target of pokeTargets) {
+    if (skipDestinations.has("poke")) continue;
     try {
-      const result = await pushToPoke(memories, target.apiKey, {
+      const policy = getExchangePolicy(target.config, "poke");
+      const destinationMemories = filterMemoriesForDestination(memories, policy);
+      const targetCategory = targetedCategory(options);
+      if (
+        options.pokeMessage &&
+        targetCategory &&
+        filterMemoriesForDestination([{ category: targetCategory, sensitive: false }], policy).length === 0
+      ) {
+        results.destinations.push({
+          type: "poke",
+          name: target.name,
+          success: true,
+        });
+        await prisma.exportLog.create({
+          data: {
+            destination: "poke",
+            status: "success",
+            memoriesCount: 0,
+            details: JSON.stringify({
+              target: target.name,
+              policy,
+              skipped: true,
+              reason: `Category "${targetCategory}" is blocked by exchange policy.`,
+            }),
+            durationMs: Date.now() - startTime,
+          },
+        });
+        continue;
+      }
+      const result = await pushToPoke(destinationMemories, target.apiKey, {
         message: options.pokeMessage,
         metadata: options.pokeMetadata,
         runId: options.pokeRunId,
@@ -135,10 +187,12 @@ export async function propagateToAllPlatforms(
         data: {
           destination: "poke",
           status: result.success ? "success" : "failed",
-          memoriesCount: memories.length,
+          memoriesCount: destinationMemories.length,
           errorMessage: result.error || null,
           details: JSON.stringify({
             target: target.name,
+            policy,
+            filteredOut: memories.length - destinationMemories.length,
             endpoint: result.endpoint,
             httpStatus: result.httpStatus,
             responseSnippet: result.responseSnippet,
@@ -163,7 +217,7 @@ export async function propagateToAllPlatforms(
 
   // ChatGPT — generate text (no write-back API)
   const chatgptSources = sources.filter((s) => s.type === "chatgpt_export");
-  if (chatgptSources.length > 0) {
+  if (chatgptSources.length > 0 && !skipDestinations.has("chatgpt_export")) {
     results.chatgptText = formatForChatGPT(memories);
     results.destinations.push({
       type: "chatgpt_export",

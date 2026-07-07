@@ -362,7 +362,7 @@ export default function LandingPage() {
           <Reveal delay={0.35}>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
-                href="/"
+                href="/dashboard"
                 className="maze-btn maze-btn-lime text-base px-8 py-3 h-auto rounded-xl font-medium shadow-lg hover:shadow-xl"
               >
                 <Lock className="h-4 w-4 mr-2" />
@@ -960,7 +960,7 @@ export default function LandingPage() {
           </Reveal>
           <Reveal delay={0.2}>
             <Link
-              href="/"
+              href="/dashboard"
               className="maze-btn maze-btn-lime text-base px-10 py-4 h-auto rounded-xl font-medium shadow-lg hover:shadow-xl mt-10 inline-flex"
             >
               <Lock className="h-4 w-4 mr-2" />
