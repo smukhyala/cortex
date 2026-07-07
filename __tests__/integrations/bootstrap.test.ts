@@ -12,6 +12,7 @@ import {
   writeClaudeBootstrap,
 } from "@/exporters/bootstrap";
 import { parseMarkdownSections } from "@/parsers/claude-code";
+import { CATEGORY_MEMORY_TOOL_LIST } from "@/contracts/memory-routing";
 
 describe("bootstrap exporter/parser ignore markers", () => {
   let tmpDir: string;
@@ -33,8 +34,14 @@ describe("bootstrap exporter/parser ignore markers", () => {
     expect(output).toContain(CORTEX_BOOTSTRAP_BEGIN);
     expect(output).toContain(CORTEX_BOOTSTRAP_END);
     expect(output).toContain("call `cortex_get_context`");
+    expect(output).toContain("call `cortex_get_relevant_memories`");
+    expect(output).toContain("call `cortex_answer_personal_question` first");
+    expect(output).toContain("call `cortex_get_memory_map`");
     expect(output).toContain("call `cortex_search_memories`");
     expect(output).toContain("call `cortex_log_context` or `cortex_save_conversation`");
+    for (const config of CATEGORY_MEMORY_TOOL_LIST) {
+      expect(output).toContain(config.name);
+    }
   });
 
   it("strips marked bootstrap regions while preserving surrounding content", () => {

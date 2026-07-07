@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { CATEGORY_LABELS, MEMORY_CATEGORIES, type MemoryCategory } from "@/contracts/memory";
+import { CATEGORY_MEMORY_TOOL_LIST } from "@/contracts/memory-routing";
 import { ingestExchangeFacts } from "@/services/exchange-ingest";
 import { getContextBundle } from "@/services/context";
 
@@ -79,62 +80,109 @@ function keywordsFromQuestion(question: string): string[] {
   )).slice(0, 8);
 }
 
-const CATEGORY_TOOL_CONFIGS: Array<{
-  name: string;
-  category: MemoryCategory;
-  description: string;
-}> = [
-  {
-    name: "cortex_get_identity_profile",
-    category: "identity",
-    description: "Get Cortex memories about the user's identity and profile: name, background, location, age, accounts, devices, general biographical facts. Use before answering who the user is or personal profile questions.",
-  },
-  {
-    name: "cortex_get_education_career",
-    category: "education_career",
-    description: "Get Cortex memories about the user's education and career: school, courses, exams, jobs, founder work, labs, professional history. Use before answering questions about studies, work, credentials, or career context.",
-  },
-  {
-    name: "cortex_get_projects_startups",
-    category: "projects",
-    description: "Get Cortex memories about the user's projects, startups, repositories, products, apps, experiments, and active builds. Use before answering what the user is building or project-specific questions.",
-  },
-  {
-    name: "cortex_get_research_interests",
-    category: "research",
-    description: "Get Cortex memories about the user's research interests, papers, labs, collaborators, technical topics, and intellectual directions. Use before answering research or technical-interest questions.",
-  },
-  {
-    name: "cortex_get_preferences_style",
-    category: "preferences",
-    description: "Get Cortex memories about the user's preferences and style: likes, dislikes, favorites, naming choices, aesthetics, coding preferences, learning preferences, UI taste, and what the user would choose. Use before any question about what the user likes, wants, would name, would pick, or prefers.",
-  },
-  {
-    name: "cortex_get_goals_plans",
-    category: "goals",
-    description: "Get Cortex memories about the user's goals, plans, ambitions, next steps, future intentions, and desired outcomes. Use before planning or prioritization questions.",
-  },
-  {
-    name: "cortex_get_relationships_contacts",
-    category: "relationships",
-    description: "Get Cortex memories about the user's relationships, collaborators, friends, contacts, pets, teams, and people they know. Use before answering questions involving people in the user's life or network.",
-  },
-  {
-    name: "cortex_get_writing_voice",
-    category: "writing_voice",
-    description: "Get Cortex memories about the user's writing voice, communication style, creative prose, tone preferences, and content style. Use before drafting or editing in the user's voice.",
-  },
-  {
-    name: "cortex_get_workflows_tools",
-    category: "workflows",
-    description: "Get Cortex memories about the user's workflows, tools, development setup, commands, editors, automation habits, and process preferences. Use before giving workflow, tooling, setup, or implementation advice.",
-  },
-  {
-    name: "cortex_get_current_context",
-    category: "temporary",
-    description: "Get Cortex memories about temporary or current context: recent status, short-term facts, active constraints, and things that may expire. Use before answering current-context questions.",
-  },
-];
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function memoryContentMatchesQuery(content: string, query: string): boolean {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return false;
+
+  const normalizedContent = content.toLowerCase();
+  if (/\s/.test(normalizedQuery)) {
+    return normalizedContent.includes(normalizedQuery);
+  }
+
+  const variants = new Set([normalizedQuery]);
+  if (normalizedQuery.endsWith("s") && normalizedQuery.length > 3) {
+    variants.add(normalizedQuery.slice(0, -1));
+  } else {
+    variants.add(`${normalizedQuery}s`);
+  }
+
+  const pattern = Array.from(variants)
+    .map(escapeRegex)
+    .join("|");
+  return new RegExp(`(^|[^a-z0-9])(${pattern})($|[^a-z0-9])`, "i").test(content);
+}
+
+function triggeredCategories(question: string): Set<MemoryCategory> {
+  const categories = new Set<MemoryCategory>();
+  for (const tool of CATEGORY_MEMORY_TOOL_LIST) {
+    if (tool.triggers.some((trigger) => memoryContentMatchesQuery(question, trigger))) {
+      categories.add(tool.category);
+    }
+  }
+  return categories;
+}
+
+type RelevantMemory = {
+  id: string;
+  content: string;
+  category: string;
+  confidence: number;
+  referenceCount: number;
+  score: number;
+  matchedTerms: string[];
+};
+
+async function getRelevantMemoriesForQuestion(question: string, maxResults: number): Promise<RelevantMemory[]> {
+  const terms = keywordsFromQuestion(question);
+  const categories = triggeredCategories(question);
+  const memories = await prisma.memory.findMany({
+    where: { status: "active", sensitive: false },
+    select: {
+      id: true,
+      content: true,
+      category: true,
+      confidence: true,
+      referenceCount: true,
+    },
+    take: 300,
+  });
+
+  const ranked = memories.map((memory) => {
+    const matchedTerms: string[] = [];
+    let score = categories.has(memory.category as MemoryCategory) ? 3 : 0;
+
+    for (const term of terms) {
+      if (memoryContentMatchesQuery(memory.content, term)) {
+        score += 5;
+        matchedTerms.push(term);
+      } else if (memory.content.toLowerCase().includes(term.toLowerCase())) {
+        score += 1;
+      }
+    }
+
+    score += Math.min(memory.referenceCount, 10) / 10;
+    return { ...memory, score, matchedTerms };
+  });
+
+  return ranked
+    .filter((memory) => memory.score >= 3)
+    .sort((a, b) => b.score - a.score || b.confidence - a.confidence)
+    .slice(0, maxResults);
+}
+
+function formatRelevantMemories(question: string, memories: RelevantMemory[]): string {
+  const lines = [
+    "Relevant Cortex memories:",
+    `Question: ${question}`,
+    "",
+  ];
+
+  if (memories.length === 0) {
+    lines.push("No focused relevant memories were found. Call cortex_get_context or cortex_get_memory_map before answering if the question is still personal.");
+    return lines.join("\n");
+  }
+
+  for (const memory of memories) {
+    const terms = memory.matchedTerms.length > 0 ? `; matched: ${memory.matchedTerms.join(", ")}` : "";
+    lines.push(`- [${memory.category}] ${memory.content} (confidence: ${Math.round(memory.confidence * 100)}%, score: ${memory.score.toFixed(1)}${terms})`);
+  }
+
+  return lines.join("\n");
+}
 
 async function getCategoryMemories(category: MemoryCategory) {
   return prisma.memory.findMany({
@@ -243,16 +291,32 @@ export function createCortexMcpServer(options: { defaultOrigin: DefaultOrigin })
         where: { status: "active", content: { contains: query } },
         select: { content: true, category: true, confidence: true },
       });
+      const exactMatches = memories.filter((memory) => memoryContentMatchesQuery(memory.content, query));
 
-      if (memories.length === 0) {
+      if (exactMatches.length === 0) {
         return { content: [{ type: "text" as const, text: `No memories found matching "${query}".` }] };
       }
 
-      const lines = memories.map(
+      const lines = exactMatches.map(
         (memory) => `- [${memory.category}] ${memory.content} (confidence: ${Math.round(memory.confidence * 100)}%)`
       );
       return {
-        content: [{ type: "text" as const, text: `Found ${memories.length} memories matching "${query}":\n\n${lines.join("\n")}` }],
+        content: [{ type: "text" as const, text: `Found ${exactMatches.length} memories matching "${query}":\n\n${lines.join("\n")}` }],
+      };
+    }
+  );
+
+  server.tool(
+    "cortex_get_relevant_memories",
+    "Universal Cortex memory router. Call this before answering any memory-sensitive or personal question when you do not know the exact memory category. It ranks all active non-sensitive memories across identity, education/career, projects, research, preferences, goals, relationships, writing voice, workflows, and temporary context.",
+    {
+      question: z.string().describe("The user's question or request, verbatim if possible."),
+      max_results: z.number().int().min(1).max(50).optional().describe("Maximum number of memories to return. Defaults to 12."),
+    },
+    async ({ question, max_results }) => {
+      const memories = await getRelevantMemoriesForQuestion(question, max_results ?? 12);
+      return {
+        content: [{ type: "text" as const, text: formatRelevantMemories(question, memories) }],
       };
     }
   );
@@ -289,30 +353,13 @@ export function createCortexMcpServer(options: { defaultOrigin: DefaultOrigin })
 
   server.tool(
     "cortex_answer_personal_question",
-    "Use this tool before answering any personal question about the user. This includes what the user would name, choose, prefer, like, dislike, remember, work on, write, study, build, or do. It searches Cortex and returns authoritative user memories plus answering guidance. Prefer this tool over general reasoning for personal questions.",
+    "Use this tool before answering any personal question about the user. This includes what the user would name, choose, prefer, like, dislike, remember, work on, write, study, build, know, use, or do. It searches all Cortex memory categories and returns authoritative user memories plus answering guidance. Prefer this tool over general reasoning for personal questions.",
     {
       question: z.string().describe("The user's personal question, verbatim if possible."),
       query: z.string().optional().describe("Optional focused search query. If omitted, Cortex derives keywords from the question."),
     },
     async ({ question, query }) => {
-      const queries = query?.trim()
-        ? [query.trim()]
-        : keywordsFromQuestion(question);
-      const seen = new Set<string>();
-      const matched: Array<{ content: string; category: string; confidence: number }> = [];
-
-      for (const item of queries) {
-        const memories = await prisma.memory.findMany({
-          where: { status: "active", content: { contains: item } },
-          select: { id: true, content: true, category: true, confidence: true },
-          take: 12,
-        });
-        for (const memory of memories) {
-          if (seen.has(memory.id)) continue;
-          seen.add(memory.id);
-          matched.push(memory);
-        }
-      }
+      const matched = await getRelevantMemoriesForQuestion(query?.trim() || question, 12);
 
       const bundle = await getContextBundle({
         destination: options.defaultOrigin === "poke" ? "poke" : "claude_desktop",
@@ -345,7 +392,7 @@ export function createCortexMcpServer(options: { defaultOrigin: DefaultOrigin })
     }
   );
 
-  for (const config of CATEGORY_TOOL_CONFIGS) {
+  for (const config of CATEGORY_MEMORY_TOOL_LIST) {
     server.tool(
       config.name,
       config.description,

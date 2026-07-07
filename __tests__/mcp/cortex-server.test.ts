@@ -32,6 +32,7 @@ vi.mock("@/services/exchange-ingest", () => ({
 }));
 
 import { createCortexMcpServer } from "@/mcp/cortex-server";
+import { CATEGORY_MEMORY_TOOL_LIST } from "@/contracts/memory-routing";
 
 function tool(name: string) {
   const found = toolCalls.find((call) => call.name === name);
@@ -61,18 +62,10 @@ describe("createCortexMcpServer", () => {
       "cortex_get_memories",
       "cortex_get_context",
       "cortex_search_memories",
+      "cortex_get_relevant_memories",
       "cortex_get_memory_map",
       "cortex_answer_personal_question",
-      "cortex_get_identity_profile",
-      "cortex_get_education_career",
-      "cortex_get_projects_startups",
-      "cortex_get_research_interests",
-      "cortex_get_preferences_style",
-      "cortex_get_goals_plans",
-      "cortex_get_relationships_contacts",
-      "cortex_get_writing_voice",
-      "cortex_get_workflows_tools",
-      "cortex_get_current_context",
+      ...CATEGORY_MEMORY_TOOL_LIST.map((config) => config.name),
       "cortex_save_conversation",
       "cortex_log_context",
     ]);
@@ -108,6 +101,14 @@ describe("createCortexMcpServer", () => {
         content: "User would name a dog Leslie.",
         category: "preferences",
         confidence: 0.9,
+        referenceCount: 2,
+      },
+      {
+        id: "watchdog",
+        content: "User needs robust watchdog infrastructure for long-running experiments.",
+        category: "workflows",
+        confidence: 0.9,
+        referenceCount: 1,
       },
     ]);
     getContextBundleMock.mockResolvedValueOnce({
@@ -121,11 +122,40 @@ describe("createCortexMcpServer", () => {
 
     expect(memoryFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { status: "active", content: { contains: "dog" } },
+        where: { status: "active", sensitive: false },
       })
     );
     expect(result.content[0].text).toContain("Direct Cortex matches:");
     expect(result.content[0].text).toContain("User would name a dog Leslie.");
+    expect(result.content[0].text).not.toContain("watchdog infrastructure");
+  });
+
+  it("routes arbitrary personal questions across all memory categories", async () => {
+    memoryFindManyMock.mockResolvedValueOnce([
+      {
+        id: "project",
+        content: "User is building Cortex as a cross-assistant memory layer.",
+        category: "projects",
+        confidence: 0.9,
+        referenceCount: 3,
+      },
+      {
+        id: "preference",
+        content: "User prefers concise, direct engineering answers.",
+        category: "preferences",
+        confidence: 0.8,
+        referenceCount: 1,
+      },
+    ]);
+    createCortexMcpServer({ defaultOrigin: "claude" });
+
+    const result = await tool("cortex_get_relevant_memories").handler({
+      question: "what am i building?",
+    });
+
+    expect(result.content[0].text).toContain("Relevant Cortex memories:");
+    expect(result.content[0].text).toContain("User is building Cortex as a cross-assistant memory layer.");
+    expect(result.content[0].text).not.toContain("concise, direct engineering answers");
   });
 
   it("returns a live category coverage map", async () => {

@@ -1,4 +1,5 @@
 import { propagateToAllPlatforms } from "@/services/propagate";
+import { writeAllClaudeBootstraps } from "@/exporters/bootstrap";
 
 interface NotifyMemoryChangeOptions {
   action: string;
@@ -26,7 +27,13 @@ function buildMessage(options: NotifyMemoryChangeOptions): string {
 }
 
 export async function notifyMemoryChange(options: NotifyMemoryChangeOptions) {
-  return propagateToAllPlatforms({
+  const bootstrapRefresh = writeAllClaudeBootstraps().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`Failed to refresh Cortex Claude bootstrap after memory change: ${message}`);
+    return [];
+  });
+
+  const propagation = await propagateToAllPlatforms({
     pokeMessage: buildMessage(options),
     pokeRunId: `cortex-memory-change-${options.action}-${options.memoryId ?? Date.now()}`,
     pokeMetadata: {
@@ -39,4 +46,7 @@ export async function notifyMemoryChange(options: NotifyMemoryChangeOptions) {
     },
     skipDestinations: options.skipDestinations,
   });
+
+  await bootstrapRefresh;
+  return propagation;
 }

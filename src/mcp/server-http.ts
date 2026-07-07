@@ -63,7 +63,7 @@ const httpServer = createServer(async (req, res) => {
     }
   }
 
-  if (url.pathname === "/") {
+  if (url.pathname === "/" || url.pathname === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ name: "cortex", version: "0.1.0", status: "ok" }));
     return;
@@ -133,6 +133,6 @@ const httpServer = createServer(async (req, res) => {
 
 httpServer.listen(PORT, () => {
   console.log(`Cortex MCP HTTP server running on http://localhost:${PORT}/mcp`);
-  console.log(`Health check: http://localhost:${PORT}/`);
+  console.log(`Health check: http://localhost:${PORT}/health`);
   console.log(`\nTo connect from Poke, use this URL: http://localhost:${PORT}/mcp`);
 });

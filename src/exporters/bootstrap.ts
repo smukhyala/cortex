@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { homedir } from "os";
+import { formatMemoryToolCatalog } from "@/contracts/memory-routing";
 
 export const CORTEX_BOOTSTRAP_BEGIN = "<!-- cortex:bootstrap:begin -->";
 export const CORTEX_BOOTSTRAP_END = "<!-- cortex:bootstrap:end -->";
@@ -11,7 +12,11 @@ export function formatBootstrapInstructions(): string {
     "## Cortex Default Context",
     "",
     "- At the start of a new conversation or coding session, call `cortex_get_context` to load the user's latest Cortex context.",
-    "- Before answering questions about the user's preferences, projects, goals, relationships, writing style, workflow, identity, or saved memories, call `cortex_search_memories` or `cortex_get_context` instead of relying on stale memory.",
+    "- Before answering any memory-sensitive question about the user, call `cortex_get_relevant_memories` with the user's exact question.",
+    "- Before answering any personal question about what the user would choose, name, prefer, like, dislike, remember, build, study, write, or do, call `cortex_answer_personal_question` first.",
+    "- If you are unsure what kind of context Cortex has for the user, call `cortex_get_memory_map`, then call the matching category tool.",
+    "- For focused lookups, call `cortex_search_memories` or one of these category tools:",
+    formatMemoryToolCatalog(),
     "- When the user states a durable fact about themselves, call `cortex_log_context` or `cortex_save_conversation` so Cortex can update every connected assistant.",
     "- Treat Cortex as the authoritative memory layer and prefer Cortex facts over older local recollections.",
     CORTEX_BOOTSTRAP_END,
