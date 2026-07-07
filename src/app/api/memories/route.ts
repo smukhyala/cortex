@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { computeMemoryStrength } from "@/lib/memory-strength";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -17,10 +18,16 @@ export async function GET(req: NextRequest) {
       source: { select: { name: true, type: true, config: true } },
       conversation: { select: { title: true, externalId: true } },
     },
-    orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json(memories);
+  const memoriesWithStrength = memories
+    .map((m) => ({
+      ...m,
+      strength: computeMemoryStrength(m.referenceCount, new Date(m.lastReferencedAt)),
+    }))
+    .sort((a, b) => b.strength - a.strength);
+
+  return NextResponse.json(memoriesWithStrength);
 }
 
 export async function POST(req: NextRequest) {
