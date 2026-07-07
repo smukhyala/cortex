@@ -46,3 +46,30 @@ export const ExchangeIngestInputSchema = z.object({
   propagate: z.boolean().default(true),
 });
 export type ExchangeIngestInput = z.infer<typeof ExchangeIngestInputSchema>;
+
+export const ExchangeOrchestratorInputSchema = z.object({
+  origin: ExchangeOriginSchema,
+  facts: z.array(ExchangeFactSchema).min(1),
+  topic: z.string().optional(),
+  summary: z.string().optional(),
+  propagate: z.boolean().default(true),
+});
+export type ExchangeOrchestratorInput = z.infer<typeof ExchangeOrchestratorInputSchema>;
+
+export const ExchangeOrchestratorOutputSchema = z.object({
+  sourceId: z.string(),
+  memoriesCreated: z.number(),
+  referencesUpdated: z.number(),
+  conflictsCreated: z.number(),
+  reviewItemsCreated: z.number(),
+  propagatedDestinations: z.array(
+    z.object({
+      type: z.string(),
+      name: z.string(),
+      success: z.boolean(),
+      error: z.string().optional(),
+    })
+  ),
+  skippedCategories: z.array(z.string()),
+});
+export type ExchangeOrchestratorOutput = z.infer<typeof ExchangeOrchestratorOutputSchema>;
