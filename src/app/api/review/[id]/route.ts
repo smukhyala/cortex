@@ -48,7 +48,7 @@ export async function PATCH(
 
       const approvedContent = editedContent || reviewItem.memory.content;
       propagateToAllPlatforms({
-        pokeMessage: `Please remember this user memory: ${approvedContent}. If I ask about this later, answer using this memory.`,
+        pokeMessage: `Please remember this Cortex user memory and use it in future answers automatically, without requiring me to ask you to use Cortex or MCP: ${approvedContent}`,
         pokeRunId: `cortex-review-approve-${reviewItem.memoryId}`,
         pokeMetadata: {
           type: "memory_update",
@@ -81,7 +81,7 @@ export async function PATCH(
       });
 
       propagateToAllPlatforms({
-        pokeMessage: `Please ignore/reject this proposed user memory if you saw it before: ${reviewItem.memory.content}`,
+        pokeMessage: `Please ignore/reject this proposed Cortex user memory if you saw it before and do not use it in future answers: ${reviewItem.memory.content}`,
         pokeRunId: `cortex-review-reject-${reviewItem.memoryId}`,
         pokeMetadata: {
           type: "memory_update",
@@ -170,7 +170,7 @@ export async function PATCH(
         pokeMessage:
           resolution === "keep_existing"
             ? `Please ignore/reject this proposed user memory if you saw it before: ${reviewItem.memory.content}`
-            : `Please remember this user memory: ${conflictMemory}. If I ask about this later, answer using this memory.`,
+            : `Please remember this Cortex user memory and use it in future answers automatically, without requiring me to ask you to use Cortex or MCP: ${conflictMemory}`,
         pokeRunId: `cortex-review-conflict-${resolution}-${reviewItem.memoryId}`,
         pokeMetadata: {
           type: "memory_update",

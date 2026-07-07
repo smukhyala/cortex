@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
     propagateToAllPlatforms({
       pokeMessage: [
-        `Please remember these ${pending.length} newly approved Cortex memories. If I ask about them later, answer using these memories.`,
+        `Please remember these ${pending.length} newly approved Cortex memories and use them in future answers automatically, without requiring me to ask you to use Cortex or MCP.`,
         ...pending.map((item) => `- ${item.memory.content}`),
       ].join("\n"),
       pokeRunId: `cortex-review-approve-all-${Date.now()}`,

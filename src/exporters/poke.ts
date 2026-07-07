@@ -38,7 +38,7 @@ export function formatPokeContext(memories: MemoryForExport[]): string {
 
   const lines = [
     "Cortex memory sync update.",
-    "Please update your memory/context about me with the facts below. Treat this as the current authoritative profile and prefer it over older conflicting details. Do not take any external action; just absorb/update memory.",
+    "Please update your memory/context about me with the facts below. Treat this as the current authoritative profile and prefer it over older conflicting details. Use this context in future answers automatically, without requiring me to ask you to use Cortex or MCP. Do not take any external action; just absorb/update memory.",
   ];
   const grouped = new Map<string, string[]>();
   for (const mem of filtered) {

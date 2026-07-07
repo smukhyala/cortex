@@ -48,7 +48,7 @@ export async function PATCH(
     pokeMessage:
       memory.status === "archived"
         ? `Please forget/remove this user memory if you have stored it: ${memory.content}`
-        : `Please remember this user memory: ${memory.content}. If I ask about this later, answer using this memory.`,
+        : `Please remember this Cortex user memory and use it in future answers automatically, without requiring me to ask you to use Cortex or MCP: ${memory.content}`,
     pokeRunId: `cortex-memory-${memory.status === "archived" ? "archive" : "update"}-${memory.id}`,
     pokeMetadata: {
       type: "memory_update",
@@ -74,7 +74,7 @@ export async function DELETE(
 
   // Propagate changes to all platforms
   propagateToAllPlatforms({
-    pokeMessage: `Please forget/remove this user memory if you have stored it: ${memory.content}`,
+    pokeMessage: `Please forget/remove this Cortex user memory if you have stored it, and do not use it in future answers: ${memory.content}`,
     pokeRunId: `cortex-memory-delete-${memory.id}`,
     pokeMetadata: {
       type: "memory_update",

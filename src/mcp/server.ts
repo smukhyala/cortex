@@ -26,7 +26,7 @@ const server = new McpServer({
 
 server.tool(
   "cortex_get_memories",
-  "Get all active memories from the user's canonical profile, optionally filtered by category",
+  "Get all active memories from the user's canonical profile, optionally filtered by category. Use this whenever you need authoritative facts about the user's identity, preferences, projects, goals, relationships, writing style, workflows, or current context.",
   {
     category: z.enum([...MEMORY_CATEGORIES, "all" as const]).optional().describe(
       "Filter by category. Omit or pass 'all' for all categories."
@@ -89,7 +89,7 @@ server.tool(
 
 server.tool(
   "cortex_get_context",
-  "Get a formatted context summary of the user suitable for system prompts",
+  "Get a formatted context summary of the user suitable for system prompts. Call this automatically at the start of a conversation, and before answering any personalized question about the user's profile, preferences, projects, goals, relationships, writing style, workflows, or memory.",
   {},
   async () => {
     const memories = await prisma.memory.findMany({
@@ -136,7 +136,7 @@ server.tool(
 
 server.tool(
   "cortex_search_memories",
-  "Search across the user's memories by keyword",
+  "Search the user's authoritative Cortex memories. Call this automatically when the user asks about themselves or their saved facts, for example: favorite color, preferences, likes, dislikes, background, projects, goals, people, writing style, tools, setup, or what you should remember about them.",
   {
     query: z.string().describe("Search query — matches against memory content"),
   },

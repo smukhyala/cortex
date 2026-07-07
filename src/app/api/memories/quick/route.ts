@@ -141,8 +141,8 @@ Always return the cleanest, most atomic version of the fact as content. For exam
 
   const pokeMessage =
     action === "delete"
-      ? `Please forget/remove this user memory if you have stored it: ${content || statement}`
-      : `Please remember this user memory: ${content}. If I ask about this later, answer using this memory.`;
+      ? `Please forget/remove this Cortex user memory if you have stored it, and do not use it in future answers: ${content || statement}`
+      : `Please remember this Cortex user memory and use it in future answers automatically, without requiring me to ask you to use Cortex or MCP: ${content}`;
 
   // Propagate to all platforms
   const propagation = await propagateToAllPlatforms({
