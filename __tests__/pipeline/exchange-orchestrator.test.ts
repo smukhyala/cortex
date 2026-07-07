@@ -7,6 +7,10 @@ vi.mock("@/lib/db", () => ({
       create: vi.fn(),
       findMany: vi.fn(),
     },
+    memory: {
+      findMany: vi.fn(),
+      update: vi.fn(),
+    },
     activityLog: { create: vi.fn() },
   },
 }));
@@ -58,6 +62,8 @@ beforeEach(() => {
   mockedPrisma.source.findFirst.mockResolvedValue({ id: "src-1" } as any);
   mockedPrisma.source.create.mockResolvedValue({ id: "src-1" } as any);
   mockedPrisma.source.findMany.mockResolvedValue([]);
+  mockedPrisma.memory.findMany.mockResolvedValue([]);
+  mockedPrisma.memory.update.mockResolvedValue({} as any);
   mockedPrisma.activityLog.create.mockResolvedValue({} as any);
   mockedDeduplicate.mockResolvedValue(dedupOutput as any);
   mockedCommit.mockResolvedValue(commitOutput);
@@ -113,5 +119,38 @@ describe("ExchangeOrchestrator", () => {
     });
 
     expect(result.skippedCategories).toContain("education_career");
+  });
+
+  it("directly supersedes an existing favorite preference from exchange facts", async () => {
+    mockedPrisma.memory.findMany.mockResolvedValue([
+      {
+        id: "mem-color",
+        content: "User's favorite color is navy.",
+      },
+    ] as any);
+
+    const orchestrator = new ExchangeOrchestrator();
+    const result = await orchestrator.run({
+      origin: "poke",
+      facts: [{ content: "User's favorite color is cactus green.", category: "preferences" }],
+    });
+
+    expect(mockedPrisma.memory.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "mem-color" },
+        data: expect.objectContaining({
+          content: "User's favorite color is cactus green.",
+          referenceCount: { increment: 1 },
+        }),
+      })
+    );
+    expect(mockedDeduplicate).not.toHaveBeenCalled();
+    expect(mockedCommit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clean: [],
+        conflicts: [],
+      })
+    );
+    expect(result.referencesUpdated).toBe(1);
   });
 });

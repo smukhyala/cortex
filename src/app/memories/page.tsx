@@ -208,12 +208,6 @@ export default function MemoriesPage() {
     URL.revokeObjectURL(url);
   }
 
-  function formatLastReferenced(value: string) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "unknown";
-    return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-  }
-
   function strengthBarColor(strength: number): string {
     if (strength >= 0.8) return "bg-amber-400";
     if (strength >= 0.4) return "bg-lime";

@@ -43,7 +43,9 @@ function inferCategory(text: string | undefined): MemoryCategory {
 }
 
 function normalizeCategory(fact: ExchangeFact, topic?: string): string {
-  if (fact.category && fact.category.length > 0) return fact.category;
+  if (fact.category && MEMORY_CATEGORIES.includes(fact.category as MemoryCategory)) {
+    return fact.category;
+  }
   const inferred = inferCategory(`${topic || ""} ${fact.content}`);
   return MEMORY_CATEGORIES.includes(inferred) ? inferred : "identity";
 }
@@ -68,6 +70,68 @@ function buildPokeMessage(origin: ExchangeOrigin, facts: ExtractedMemory[]): str
     "Please remember these user facts and use them in future answers automatically:",
     ...facts.map((f) => `- ${f.content}`),
   ].join("\n");
+}
+
+function favoriteStatementKey(content: string): string | null {
+  const match = content.match(/^User's favorite ([^.!?]+?) is\s+.+[.!?]?$/i);
+  return match?.[1]?.trim().toLowerCase() ?? null;
+}
+
+async function applyDirectSupersedes(memories: ExtractedMemory[]): Promise<{
+  remaining: ExtractedMemory[];
+  referencesUpdated: number;
+}> {
+  const remaining: ExtractedMemory[] = [];
+  let referencesUpdated = 0;
+
+  for (const memory of memories) {
+    const favoriteKey = favoriteStatementKey(memory.content);
+    if (!favoriteKey) {
+      remaining.push(memory);
+      continue;
+    }
+
+    const candidates = await prisma.memory.findMany({
+      where: {
+        status: "active",
+        category: memory.category,
+      },
+      select: { id: true, content: true },
+    });
+    const existing = candidates.find(
+      (candidate) => favoriteStatementKey(candidate.content) === favoriteKey
+    );
+    if (!existing) {
+      remaining.push(memory);
+      continue;
+    }
+
+    await prisma.memory.update({
+      where: { id: existing.id },
+      data: {
+        content: memory.content,
+        referenceCount: { increment: 1 },
+        lastReferencedAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    referencesUpdated++;
+
+    await prisma.activityLog.create({
+      data: {
+        action: "exchange_direct_supersede",
+        summary: "Updated existing favorite preference from exchange",
+        details: JSON.stringify({
+          existingMemoryId: existing.id,
+          previousContent: existing.content,
+          newContent: memory.content,
+          category: memory.category,
+        }),
+      },
+    });
+  }
+
+  return { remaining, referencesUpdated };
 }
 
 async function computeSkippedCategories(
@@ -118,19 +182,23 @@ export class ExchangeOrchestrator {
       isCorrection: false,
     }));
 
-    let clean = extractedMemories;
+    const directSupersede = await applyDirectSupersedes(extractedMemories);
+
+    let clean = directSupersede.remaining;
     let conflicts: Awaited<ReturnType<typeof deduplicateMemories>>["output"]["conflicts"] = [];
     let duplicateReferences: Awaited<ReturnType<typeof deduplicateMemories>>["output"]["duplicateReferences"] = [];
     let duplicatesDropped = 0;
 
-    try {
-      const dedupResult = await deduplicateMemories(extractedMemories);
-      clean = dedupResult.output.clean;
-      conflicts = dedupResult.output.conflicts;
-      duplicateReferences = dedupResult.output.duplicateReferences;
-      duplicatesDropped = dedupResult.output.duplicatesDropped;
-    } catch (error) {
-      console.error("Exchange dedup failed, committing all facts as active:", error);
+    if (directSupersede.remaining.length > 0) {
+      try {
+        const dedupResult = await deduplicateMemories(directSupersede.remaining);
+        clean = dedupResult.output.clean;
+        conflicts = dedupResult.output.conflicts;
+        duplicateReferences = dedupResult.output.duplicateReferences;
+        duplicatesDropped = dedupResult.output.duplicatesDropped;
+      } catch (error) {
+        console.error("Exchange dedup failed, committing all facts as active:", error);
+      }
     }
 
     const commitResult = await commit({
@@ -153,7 +221,7 @@ export class ExchangeOrchestrator {
           factsReceived: input.facts.length,
           memoriesCreated: commitResult.memoriesCreated,
           duplicatesDropped,
-          referencesUpdated: commitResult.referencesUpdated,
+          referencesUpdated: commitResult.referencesUpdated + directSupersede.referencesUpdated,
           conflictsCreated: commitResult.conflictsCreated,
         }),
       },
@@ -180,7 +248,7 @@ export class ExchangeOrchestrator {
     const output: ExchangeOrchestratorOutput = {
       sourceId,
       memoriesCreated: commitResult.memoriesCreated,
-      referencesUpdated: commitResult.referencesUpdated,
+      referencesUpdated: commitResult.referencesUpdated + directSupersede.referencesUpdated,
       conflictsCreated: commitResult.conflictsCreated,
       reviewItemsCreated: commitResult.reviewItemsCreated,
       propagatedDestinations,

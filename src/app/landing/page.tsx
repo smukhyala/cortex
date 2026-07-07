@@ -43,7 +43,7 @@ export default function HomePage() {
       <div className="space-y-6 pt-8" data-animate>
         <p className="maze-eyebrow">Cortex</p>
         <h1 className="text-4xl font-semibold tracking-tight leading-tight">
-          Your AI tools don't talk to each other.
+          Your AI tools don&apos;t talk to each other.
           <br />
           <span className="text-lime">Cortex fixes that.</span>
         </h1>

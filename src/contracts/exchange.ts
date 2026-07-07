@@ -47,6 +47,36 @@ export const ExchangeIngestInputSchema = z.object({
 });
 export type ExchangeIngestInput = z.infer<typeof ExchangeIngestInputSchema>;
 
+const PokeWebhookMessageSchema = z.object({
+  role: z.string().optional(),
+  sender: z.string().optional(),
+  author: z.string().optional(),
+  text: z.string().optional(),
+  content: z.string().optional(),
+  body: z.string().optional(),
+}).passthrough();
+
+export const PokeWebhookPayloadSchema = z.object({
+  type: z.string().optional(),
+  event: z.string().optional(),
+  conversationId: z.string().optional(),
+  threadId: z.string().optional(),
+  userId: z.string().optional(),
+  text: z.string().optional(),
+  content: z.string().optional(),
+  body: z.string().optional(),
+  message: z.union([z.string(), PokeWebhookMessageSchema]).optional(),
+  messages: z.array(PokeWebhookMessageSchema).optional(),
+  facts: z.array(ExchangeFactSchema).optional(),
+}).passthrough();
+export type PokeWebhookPayload = z.infer<typeof PokeWebhookPayloadSchema>;
+
+export const PokeWebhookFactExtractionSchema = z.object({
+  facts: z.array(ExchangeFactSchema).default([]),
+  summary: z.string().optional(),
+});
+export type PokeWebhookFactExtraction = z.infer<typeof PokeWebhookFactExtractionSchema>;
+
 export const ExchangeOrchestratorInputSchema = z.object({
   origin: ExchangeOriginSchema,
   facts: z.array(ExchangeFactSchema).min(1),
