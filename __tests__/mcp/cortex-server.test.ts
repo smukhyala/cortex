@@ -61,6 +61,18 @@ describe("createCortexMcpServer", () => {
       "cortex_get_memories",
       "cortex_get_context",
       "cortex_search_memories",
+      "cortex_get_memory_map",
+      "cortex_answer_personal_question",
+      "cortex_get_identity_profile",
+      "cortex_get_education_career",
+      "cortex_get_projects_startups",
+      "cortex_get_research_interests",
+      "cortex_get_preferences_style",
+      "cortex_get_goals_plans",
+      "cortex_get_relationships_contacts",
+      "cortex_get_writing_voice",
+      "cortex_get_workflows_tools",
+      "cortex_get_current_context",
       "cortex_save_conversation",
       "cortex_log_context",
     ]);
@@ -87,5 +99,73 @@ describe("createCortexMcpServer", () => {
     expect(ingestExchangeFactsMock).toHaveBeenCalledWith(
       expect.objectContaining({ origin: "claude" })
     );
+  });
+
+  it("answers personal questions with direct Cortex matches and broader context", async () => {
+    memoryFindManyMock.mockResolvedValueOnce([
+      {
+        id: "dog-name",
+        content: "User would name a dog Leslie.",
+        category: "preferences",
+        confidence: 0.9,
+      },
+    ]);
+    getContextBundleMock.mockResolvedValueOnce({
+      markdown: "## Preferences\n- User would name a dog Leslie.",
+    });
+    createCortexMcpServer({ defaultOrigin: "claude" });
+
+    const result = await tool("cortex_answer_personal_question").handler({
+      question: "what would i name a dog?",
+    });
+
+    expect(memoryFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { status: "active", content: { contains: "dog" } },
+      })
+    );
+    expect(result.content[0].text).toContain("Direct Cortex matches:");
+    expect(result.content[0].text).toContain("User would name a dog Leslie.");
+  });
+
+  it("returns a live category coverage map", async () => {
+    memoryFindManyMock.mockResolvedValueOnce([
+      { category: "preferences" },
+      { category: "projects" },
+      { category: "preferences" },
+    ]);
+    createCortexMcpServer({ defaultOrigin: "claude" });
+
+    const result = await tool("cortex_get_memory_map").handler({});
+
+    expect(memoryFindManyMock).toHaveBeenCalledWith({
+      where: { status: "active", sensitive: false },
+      select: { category: true },
+    });
+    expect(result.content[0].text).toContain("preferences: Preferences & Style - 2 active memories");
+    expect(result.content[0].text).toContain("projects: Projects & Startups - 1 active memories");
+  });
+
+  it("returns category-specific memories for focused personal questions", async () => {
+    memoryFindManyMock.mockResolvedValueOnce([
+      {
+        content: "User would name a dog Leslie.",
+        category: "preferences",
+        confidence: 0.9,
+        referenceCount: 2,
+        lastReferencedAt: new Date("2026-07-07T10:55:00.000Z"),
+      },
+    ]);
+    createCortexMcpServer({ defaultOrigin: "claude" });
+
+    const result = await tool("cortex_get_preferences_style").handler({});
+
+    expect(memoryFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { status: "active", category: "preferences", sensitive: false },
+      })
+    );
+    expect(result.content[0].text).toContain("Preferences & Style (1 Cortex memories):");
+    expect(result.content[0].text).toContain("User would name a dog Leslie.");
   });
 });
