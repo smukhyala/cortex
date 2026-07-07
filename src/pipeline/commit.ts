@@ -5,10 +5,21 @@ type MemoryWithOrigin = ExtractedMemory & {
   conversationExternalId?: string | null;
 };
 
+type ReviewConflictType = DeduplicationOutput["conflicts"][number]["type"];
+
+const HIGH_JEOPARDY_PATTERN =
+  /\b(health|medical|diagnos(?:is|ed)|medication|therapy|therapist|doctor|hospital|salary|income|debt|loan|bank|account|tax|ssn|social security|passport|driver'?s license|address|lawsuit|legal|attorney|lawyer|immigration|visa|password|api key|private key|secret)\b/i;
+
+function isHighJeopardyMemory(memory: ExtractedMemory): boolean {
+  return memory.sensitive || HIGH_JEOPARDY_PATTERN.test(memory.content);
+}
+
 export interface CommitResult {
   memoriesCreated: number;
   reviewItemsCreated: number;
   conflictsCreated: number;
+  newMemoriesAutoApproved: number;
+  newMemoriesQueuedForReview: number;
   autoApproved: number;
   autoSuperseded: number;
   referencesUpdated: number;
@@ -31,14 +42,18 @@ export async function commit(params: {
   duplicateReferences?: DeduplicationOutput["duplicateReferences"];
   conversationMap: Map<string, string>; // externalId -> DB conversationId
   initialStatus?: "pending" | "active";
+  reviewConflictTypes?: ReviewConflictType[];
 }): Promise<CommitResult> {
   let memoriesCreated = 0;
   let reviewItemsCreated = 0;
   let conflictsCreated = 0;
+  let newMemoriesAutoApproved = 0;
+  let newMemoriesQueuedForReview = 0;
   let autoApproved = 0;
   let autoSuperseded = 0;
   let referencesUpdated = 0;
   const initialStatus = params.initialStatus ?? "pending";
+  const reviewConflictTypes = new Set(params.reviewConflictTypes ?? []);
 
   async function markReferenced(memoryId: string) {
     await prisma.memory.update({
@@ -72,6 +87,7 @@ export async function commit(params: {
     const conversationId = origin.conversationExternalId
       ? params.conversationMap.get(origin.conversationExternalId)
       : undefined;
+    const status = isHighJeopardyMemory(mem) ? "pending" : initialStatus;
 
     const memory = await prisma.memory.create({
       data: {
@@ -84,13 +100,16 @@ export async function commit(params: {
         sensitive: mem.sensitive,
         sourceId: params.sourceId,
         ...(conversationId ? { conversationId } : {}),
-        status: initialStatus,
-        ...(initialStatus === "active" ? { approvedAt: new Date() } : {}),
+        status,
+        ...(status === "active" ? { approvedAt: new Date() } : {}),
       },
     });
     memoriesCreated++;
 
-    if (initialStatus === "pending") {
+    if (status === "active") {
+      newMemoriesAutoApproved++;
+    } else {
+      newMemoriesQueuedForReview++;
       // Create review item for each pending memory
       await prisma.reviewItem.create({
         data: {
@@ -111,7 +130,9 @@ export async function commit(params: {
       ? params.conversationMap.get(origin.conversationExternalId)
       : undefined;
     const canAutoResolve =
-      !conflict.newMemory.sensitive && !conflict.newMemory.isCorrection;
+      !reviewConflictTypes.has(conflict.type) &&
+      !isHighJeopardyMemory(conflict.newMemory) &&
+      !conflict.newMemory.isCorrection;
 
     // ── Refinement: auto-merge new detail into existing memory ──────────
     if (conflict.type === "refinement" && canAutoResolve) {
@@ -195,6 +216,7 @@ export async function commit(params: {
       },
     });
     memoriesCreated++;
+    newMemoriesQueuedForReview++;
 
     // Create conflict record
     const conflictRecord = await prisma.conflict.create({
@@ -223,5 +245,14 @@ export async function commit(params: {
     reviewItemsCreated++;
   }
 
-  return { memoriesCreated, reviewItemsCreated, conflictsCreated, autoApproved, autoSuperseded, referencesUpdated };
+  return {
+    memoriesCreated,
+    reviewItemsCreated,
+    conflictsCreated,
+    newMemoriesAutoApproved,
+    newMemoriesQueuedForReview,
+    autoApproved,
+    autoSuperseded,
+    referencesUpdated,
+  };
 }

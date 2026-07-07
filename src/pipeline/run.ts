@@ -7,6 +7,15 @@ import { commit } from "./commit";
 import type { SourceType, SyncTrigger } from "@/contracts/source";
 import { getCategories } from "@/lib/categories";
 import { notifyMemoryChange } from "@/services/memory-change";
+import { isLikelyTechnicalMemory } from "@/lib/memory-quality";
+
+const AUTO_APPROVE_NEW_MEMORY_SOURCES = new Set<SourceType>([
+  "claude_code",
+  "claude_desktop",
+  "claude_export",
+  "poke",
+]);
+const REVIEW_CONFLICT_TYPES_FOR_AUTO_SOURCES = ["supersede", "contradiction"] as const;
 
 /**
  * Run the full 4-agent pipeline synchronously.
@@ -70,6 +79,8 @@ export async function runPipeline(input: {
         conflictsFound: 0,
         reviewItemsCreated: 0,
         duplicatesDropped: 0,
+        newMemoriesAutoApproved: 0,
+        newMemoriesQueuedForReview: 0,
         autoApproved: 0,
         autoSuperseded: 0,
         durationMs,
@@ -110,7 +121,7 @@ export async function runPipeline(input: {
     const extraction = await batchExtractMemories(conversations, categories);
 
     // Flatten all extracted memories
-    const allMemories = extraction.results.flatMap((r) => {
+    const extractedMemories = extraction.results.flatMap((r) => {
       const conv = conversations.find((c) => c.externalId === r.conversationId);
       return r.memories.map((mem) => ({
         ...mem,
@@ -118,17 +129,24 @@ export async function runPipeline(input: {
         conversationExternalId: conv?.externalId,
       }));
     });
+    const allMemories = extractedMemories.filter((memory) => !isLikelyTechnicalMemory(memory.content));
+    const technicalMemoriesDropped = extractedMemories.length - allMemories.length;
 
     // ── Agent 3: Deduplicate + Conflict Detect ───────────────────────────
     const dedup = await deduplicateMemories(allMemories);
 
     // ── Agent 4: Commit ──────────────────────────────────────────────────
+    const shouldAutoApproveNewMemories = AUTO_APPROVE_NEW_MEMORY_SOURCES.has(input.sourceType);
     const commitResult = await commit({
       sourceId: input.sourceId,
       clean: dedup.output.clean,
       conflicts: dedup.output.conflicts,
       duplicateReferences: dedup.output.duplicateReferences,
       conversationMap,
+      initialStatus: shouldAutoApproveNewMemories ? "active" : "pending",
+      ...(shouldAutoApproveNewMemories
+        ? { reviewConflictTypes: [...REVIEW_CONFLICT_TYPES_FOR_AUTO_SOURCES] }
+        : {}),
     });
 
     const durationMs = Date.now() - startTime;
@@ -169,9 +187,12 @@ export async function runPipeline(input: {
           conversationsParsed: conversations.length,
           conversationsSkipped: skipped,
           memoriesExtracted: allMemories.length,
+          technicalMemoriesDropped,
           conflictsFound: commitResult.conflictsCreated,
           reviewItemsCreated: commitResult.reviewItemsCreated,
           duplicatesDropped: dedup.output.duplicatesDropped,
+          newMemoriesAutoApproved: commitResult.newMemoriesAutoApproved,
+          newMemoriesQueuedForReview: commitResult.newMemoriesQueuedForReview,
           autoApproved: commitResult.autoApproved,
           autoSuperseded: commitResult.autoSuperseded,
           tokensUsed: totalTokens,
@@ -194,6 +215,8 @@ export async function runPipeline(input: {
       conflictsFound: commitResult.conflictsCreated,
       reviewItemsCreated: commitResult.reviewItemsCreated,
       duplicatesDropped: dedup.output.duplicatesDropped,
+      newMemoriesAutoApproved: commitResult.newMemoriesAutoApproved,
+      newMemoriesQueuedForReview: commitResult.newMemoriesQueuedForReview,
       autoApproved: commitResult.autoApproved,
       autoSuperseded: commitResult.autoSuperseded,
       durationMs,

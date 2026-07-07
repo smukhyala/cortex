@@ -14,12 +14,14 @@ import { deduplicateMemories } from "@/pipeline/deduplicate";
 import { commit } from "@/pipeline/commit";
 import { propagateToAllPlatforms } from "@/services/propagate";
 import { getExchangePolicy, filterMemoriesForDestination } from "@/services/exchange-policy";
+import { getMemoryFactKey, memoryFactKeysMatch } from "@/lib/memory-facts";
 
 const ORIGIN_SOURCE: Record<ExchangeOrigin, { type: string; name: string }> = {
   claude: { type: "claude_desktop", name: "Claude (Exchange)" },
   poke: { type: "poke", name: "Poke (Exchange)" },
   manual: { type: "manual", name: "Cortex Manual" },
 };
+const REVIEW_CONFLICT_TYPES_FOR_ASSISTANT_ORIGINS = ["supersede", "contradiction"] as const;
 
 const TOPIC_TO_CATEGORY: Record<string, MemoryCategory> = {
   identity: "identity", personal: "identity", profile: "identity", background: "identity",
@@ -72,11 +74,6 @@ function buildPokeMessage(origin: ExchangeOrigin, facts: ExtractedMemory[]): str
   ].join("\n");
 }
 
-function favoriteStatementKey(content: string): string | null {
-  const match = content.match(/^User's favorite ([^.!?]+?) is\s+.+[.!?]?$/i);
-  return match?.[1]?.trim().toLowerCase() ?? null;
-}
-
 async function applyDirectSupersedes(memories: ExtractedMemory[]): Promise<{
   remaining: ExtractedMemory[];
   referencesUpdated: number;
@@ -85,8 +82,8 @@ async function applyDirectSupersedes(memories: ExtractedMemory[]): Promise<{
   let referencesUpdated = 0;
 
   for (const memory of memories) {
-    const favoriteKey = favoriteStatementKey(memory.content);
-    if (!favoriteKey) {
+    const factKey = getMemoryFactKey(memory.content);
+    if (!factKey) {
       remaining.push(memory);
       continue;
     }
@@ -99,7 +96,7 @@ async function applyDirectSupersedes(memories: ExtractedMemory[]): Promise<{
       select: { id: true, content: true },
     });
     const existing = candidates.find(
-      (candidate) => favoriteStatementKey(candidate.content) === favoriteKey
+      (candidate) => memoryFactKeysMatch(candidate.content, memory.content)
     );
     if (!existing) {
       remaining.push(memory);
@@ -120,9 +117,10 @@ async function applyDirectSupersedes(memories: ExtractedMemory[]): Promise<{
     await prisma.activityLog.create({
       data: {
         action: "exchange_direct_supersede",
-        summary: "Updated existing favorite preference from exchange",
+        summary: "Updated existing canonical memory from exchange",
         details: JSON.stringify({
           existingMemoryId: existing.id,
+          factKey,
           previousContent: existing.content,
           newContent: memory.content,
           category: memory.category,
@@ -182,7 +180,9 @@ export class ExchangeOrchestrator {
       isCorrection: false,
     }));
 
-    const directSupersede = await applyDirectSupersedes(extractedMemories);
+    const directSupersede = input.origin === "manual"
+      ? await applyDirectSupersedes(extractedMemories)
+      : { remaining: extractedMemories, referencesUpdated: 0 };
 
     let clean = directSupersede.remaining;
     let conflicts: Awaited<ReturnType<typeof deduplicateMemories>>["output"]["conflicts"] = [];
@@ -207,6 +207,9 @@ export class ExchangeOrchestrator {
       conflicts,
       duplicateReferences,
       initialStatus: "active",
+      ...(input.origin === "claude" || input.origin === "poke"
+        ? { reviewConflictTypes: [...REVIEW_CONFLICT_TYPES_FOR_ASSISTANT_ORIGINS] }
+        : {}),
       conversationMap: new Map(),
     });
 
@@ -220,6 +223,8 @@ export class ExchangeOrchestrator {
           summary: input.summary,
           factsReceived: input.facts.length,
           memoriesCreated: commitResult.memoriesCreated,
+          newMemoriesAutoApproved: commitResult.newMemoriesAutoApproved,
+          newMemoriesQueuedForReview: commitResult.newMemoriesQueuedForReview,
           duplicatesDropped,
           referencesUpdated: commitResult.referencesUpdated + directSupersede.referencesUpdated,
           conflictsCreated: commitResult.conflictsCreated,
@@ -251,6 +256,8 @@ export class ExchangeOrchestrator {
       referencesUpdated: commitResult.referencesUpdated + directSupersede.referencesUpdated,
       conflictsCreated: commitResult.conflictsCreated,
       reviewItemsCreated: commitResult.reviewItemsCreated,
+      newMemoriesAutoApproved: commitResult.newMemoriesAutoApproved,
+      newMemoriesQueuedForReview: commitResult.newMemoriesQueuedForReview,
       propagatedDestinations,
       skippedCategories,
     };

@@ -92,6 +92,8 @@ export const ExchangeOrchestratorOutputSchema = z.object({
   referencesUpdated: z.number(),
   conflictsCreated: z.number(),
   reviewItemsCreated: z.number(),
+  newMemoriesAutoApproved: z.number(),
+  newMemoriesQueuedForReview: z.number(),
   propagatedDestinations: z.array(
     z.object({
       type: z.string(),

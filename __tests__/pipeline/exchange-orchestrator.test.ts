@@ -54,6 +54,7 @@ const dedupOutput = {
 
 const commitOutput = {
   memoriesCreated: 1, reviewItemsCreated: 0, conflictsCreated: 0,
+  newMemoriesAutoApproved: 1, newMemoriesQueuedForReview: 0,
   autoApproved: 0, autoSuperseded: 0, referencesUpdated: 0,
 };
 
@@ -121,7 +122,7 @@ describe("ExchangeOrchestrator", () => {
     expect(result.skippedCategories).toContain("education_career");
   });
 
-  it("directly supersedes an existing favorite preference from exchange facts", async () => {
+  it("does not directly supersede existing favorite preferences from Poke", async () => {
     mockedPrisma.memory.findMany.mockResolvedValue([
       {
         id: "mem-color",
@@ -135,12 +136,63 @@ describe("ExchangeOrchestrator", () => {
       facts: [{ content: "User's favorite color is cactus green.", category: "preferences" }],
     });
 
-    expect(mockedPrisma.memory.update).toHaveBeenCalledWith(
+    expect(mockedPrisma.memory.update).not.toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "mem-color" },
         data: expect.objectContaining({
           content: "User's favorite color is cactus green.",
           referenceCount: { increment: 1 },
+        }),
+      })
+    );
+    expect(mockedDeduplicate).toHaveBeenCalled();
+    expect(mockedCommit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initialStatus: "active",
+        reviewConflictTypes: ["supersede", "contradiction"],
+      })
+    );
+    expect(result.referencesUpdated).toBe(0);
+  });
+
+  it("directly supersedes an existing manual graduation-year memory", async () => {
+    mockedPrisma.memory.findMany.mockResolvedValue([
+      {
+        id: "mem-grad-year",
+        content: "User is graduating in year 2027.",
+      },
+    ] as any);
+    mockedCommit.mockResolvedValueOnce({
+      memoriesCreated: 0,
+      reviewItemsCreated: 0,
+      conflictsCreated: 0,
+      newMemoriesAutoApproved: 0,
+      newMemoriesQueuedForReview: 0,
+      autoApproved: 0,
+      autoSuperseded: 0,
+      referencesUpdated: 0,
+    });
+
+    const orchestrator = new ExchangeOrchestrator();
+    const result = await orchestrator.run({
+      origin: "manual",
+      facts: [{ content: "User is graduating in year 2100.", category: "education_career" }],
+    });
+
+    expect(mockedPrisma.memory.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "mem-grad-year" },
+        data: expect.objectContaining({
+          content: "User is graduating in year 2100.",
+          referenceCount: { increment: 1 },
+        }),
+      })
+    );
+    expect(mockedPrisma.activityLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "exchange_direct_supersede",
+          details: expect.stringContaining("education:graduation_year"),
         }),
       })
     );

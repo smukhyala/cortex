@@ -7,16 +7,25 @@ interface NotifyMemoryChangeOptions {
   content?: string;
   category?: string;
   count?: number;
+  previousContent?: string | null;
+  archivedCount?: number;
   skipDestinations?: string[];
 }
 
 function buildMessage(options: NotifyMemoryChangeOptions): string {
-  if (options.action === "delete" || options.action === "archive" || options.action === "reject") {
+  if (options.action === "delete" || options.action === "trash" || options.action === "archive" || options.action === "reject") {
     return `Please forget/remove this Cortex user memory if you have stored it, and do not use it in future answers: ${options.content ?? options.memoryId ?? "the rejected memory"}`;
   }
 
   if (options.count && options.count > 1) {
     return `Cortex updated ${options.count} user memories. Please refresh your Cortex context and use the latest profile automatically in future answers.`;
+  }
+
+  if (options.action === "update" && options.previousContent && options.content) {
+    const archived = options.archivedCount && options.archivedCount > 0
+      ? ` Cortex also archived ${options.archivedCount} repeated or stale memor${options.archivedCount === 1 ? "y" : "ies"} for this same fact.`
+      : "";
+    return `Cortex changed this user memory from "${options.previousContent}" to "${options.content}". Use the new Cortex memory as authoritative across future answers and ignore older conflicting versions.${archived}`;
   }
 
   if (options.content) {
@@ -43,6 +52,8 @@ export async function notifyMemoryChange(options: NotifyMemoryChangeOptions) {
       memory: options.content,
       category: options.category,
       count: options.count,
+      previousMemory: options.previousContent,
+      archivedCount: options.archivedCount,
     },
     skipDestinations: options.skipDestinations,
   });

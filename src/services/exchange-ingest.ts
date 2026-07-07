@@ -15,6 +15,8 @@ export interface ExchangeIngestResult {
   referencesUpdated: number;
   conflictsCreated: number;
   reviewItemsCreated: number;
+  newMemoriesAutoApproved: number;
+  newMemoriesQueuedForReview: number;
   propagatedDestinations: Array<{ type: string; name: string; success: boolean; error?: string }>;
 }
 
@@ -33,6 +35,8 @@ export async function ingestExchangeFacts(params: ExchangeIngestParams): Promise
     referencesUpdated: result.referencesUpdated,
     conflictsCreated: result.conflictsCreated,
     reviewItemsCreated: result.reviewItemsCreated,
+    newMemoriesAutoApproved: result.newMemoriesAutoApproved,
+    newMemoriesQueuedForReview: result.newMemoriesQueuedForReview,
     propagatedDestinations: result.propagatedDestinations,
   };
 }

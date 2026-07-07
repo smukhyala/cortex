@@ -30,6 +30,15 @@ export interface DedupScanResult {
   tokensUsed: number;
 }
 
+interface ActiveMemoryForDedupApply {
+  id: string;
+  referenceCount: number;
+  lastReferencedAt: Date;
+  confidence: number;
+  updatedAt: Date;
+  createdAt: Date;
+}
+
 const DEDUP_SYSTEM_PROMPT = `You are a deduplication agent for a personal memory system. You will be given a list of memories (facts about a person) and must identify groups of duplicates or near-duplicates.
 
 Rules:
@@ -69,14 +78,38 @@ export async function runDedupScan(): Promise<DedupScanResult> {
     temperature: 0,
   });
 
-  const duplicateCount = result.data.groups.reduce((sum, g) => sum + g.duplicateIds.length, 0);
+  const knownIds = new Set(memories.map((memory) => memory.id));
+  const usedIds = new Set<string>();
+  const groups = result.data.groups
+    .map((group) => {
+      const duplicateIds = group.duplicateIds.filter((id) => {
+        if (!knownIds.has(id) || usedIds.has(id)) return false;
+        usedIds.add(id);
+        return true;
+      });
+      return { ...group, duplicateIds };
+    })
+    .filter((group) => group.duplicateIds.length > 1);
+
+  const duplicateCount = groups.reduce((sum, group) => sum + group.duplicateIds.length - 1, 0);
+  const uniqueCount = memories.length - groups.reduce((sum, group) => sum + group.duplicateIds.length, 0);
 
   return {
-    groups: result.data.groups,
-    uniqueCount: result.data.uniqueIds.length,
+    groups,
+    uniqueCount,
     duplicateCount,
     tokensUsed: result.inputTokens + result.outputTokens,
   };
+}
+
+function chooseKeeper(memories: ActiveMemoryForDedupApply[]): ActiveMemoryForDedupApply {
+  return [...memories].sort((a, b) =>
+    b.referenceCount - a.referenceCount ||
+    b.lastReferencedAt.getTime() - a.lastReferencedAt.getTime() ||
+    b.confidence - a.confidence ||
+    b.updatedAt.getTime() - a.updatedAt.getTime() ||
+    b.createdAt.getTime() - a.createdAt.getTime()
+  )[0];
 }
 
 /**
@@ -90,37 +123,54 @@ export async function applyDedupResults(
   let archived = 0;
 
   for (const group of groups) {
-    if (group.duplicateIds.length === 0) continue;
+    const uniqueIds = Array.from(new Set(group.duplicateIds));
+    if (uniqueIds.length < 2) continue;
 
-    const keepId = group.duplicateIds[0];
-    const archiveIds = group.duplicateIds.slice(1);
-
-    // Verify the memory still exists and is active
-    const keepMem = await prisma.memory.findFirst({
-      where: { id: keepId, status: "active" },
+    const activeMemories = await prisma.memory.findMany({
+      where: { id: { in: uniqueIds }, status: "active" },
+      select: {
+        id: true,
+        referenceCount: true,
+        lastReferencedAt: true,
+        confidence: true,
+        updatedAt: true,
+        createdAt: true,
+      },
     });
-    if (!keepMem) continue;
+    if (activeMemories.length < 2) continue;
 
-    // Update the kept memory with canonical content
+    const keepMem = chooseKeeper(activeMemories);
+    const keepId = keepMem.id;
+    const archiveIds = activeMemories
+      .map((memory) => memory.id)
+      .filter((id) => id !== keepId);
+    const archivedReferenceCount = activeMemories
+      .filter((memory) => memory.id !== keepId)
+      .reduce((sum, memory) => sum + memory.referenceCount, 0);
+    const lastReferencedAt = activeMemories.reduce(
+      (latest, memory) => memory.lastReferencedAt > latest ? memory.lastReferencedAt : latest,
+      keepMem.lastReferencedAt
+    );
+
+    // Update the strongest retained memory with canonical content and carry forward evidence.
     await prisma.memory.update({
       where: { id: keepId },
-      data: { content: group.canonical },
+      data: {
+        content: group.canonical,
+        referenceCount: { increment: archivedReferenceCount },
+        lastReferencedAt,
+      },
     });
     merged++;
 
-    // Archive duplicates (skip if already archived)
+    // Archive duplicates from the active set fetched above.
     for (const id of archiveIds) {
-      const exists = await prisma.memory.findFirst({
-        where: { id, status: "active" },
-      });
-      if (!exists) continue;
-
       await prisma.memory.update({
         where: { id },
         data: {
           status: "archived",
           archivedAt: new Date(),
-          archivedReason: `Deduplicated — merged into ${keepId}`,
+          archivedReason: `Deduplicated - merged into ${keepId}`,
         },
       });
       archived++;

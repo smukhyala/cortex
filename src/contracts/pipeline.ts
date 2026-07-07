@@ -114,6 +114,8 @@ export const PipelineResultSchema = z.object({
   conflictsFound: z.number(),
   reviewItemsCreated: z.number(),
   duplicatesDropped: z.number(),
+  newMemoriesAutoApproved: z.number(),
+  newMemoriesQueuedForReview: z.number(),
   autoApproved: z.number(),
   autoSuperseded: z.number(),
   durationMs: z.number(),

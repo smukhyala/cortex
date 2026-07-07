@@ -52,13 +52,14 @@ model Memory {
   sensitive      Boolean   @default(false)
   referenceCount Int       @default(1)
   lastReferencedAt DateTime @default(now())
+  manuallyStrong Boolean   @default(false)
 
   sourceId       String
   source         Source    @relation(fields: [sourceId], references: [id])
   conversationId String?
   conversation   Conversation? @relation(fields: [conversationId], references: [id])
 
-  status         String    @default("pending") // pending | active | rejected | archived
+  status         String    @default("pending") // pending | active | rejected | archived | deleted
   approvedAt     DateTime?
   archivedAt     DateTime?
   archivedReason String?

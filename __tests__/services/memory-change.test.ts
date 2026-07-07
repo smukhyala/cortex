@@ -50,4 +50,27 @@ describe("notifyMemoryChange", () => {
     await expect(notifyMemoryChange({ action: "create", count: 2 })).resolves.toEqual({ destinations: [] });
     expect(propagateToAllPlatformsMock).toHaveBeenCalled();
   });
+
+  it("tells connected platforms exactly what changed for updates", async () => {
+    await notifyMemoryChange({
+      action: "update",
+      memoryId: "mem_grad",
+      previousContent: "User is graduating in 2027.",
+      content: "User is graduating in 2100.",
+      category: "education_career",
+      archivedCount: 2,
+    });
+
+    expect(propagateToAllPlatformsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pokeMessage: expect.stringContaining(
+          'Cortex changed this user memory from "User is graduating in 2027." to "User is graduating in 2100."'
+        ),
+        pokeMetadata: expect.objectContaining({
+          previousMemory: "User is graduating in 2027.",
+          archivedCount: 2,
+        }),
+      })
+    );
+  });
 });

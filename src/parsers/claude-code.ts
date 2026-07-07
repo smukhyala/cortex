@@ -3,6 +3,7 @@ import { readFile, writeFile, stat, readdir } from "fs/promises";
 import { join } from "path";
 import type { NormalizedConversation, NormalizedMessage } from "@/contracts/conversation";
 import { stripBootstrapBlocks } from "@/exporters/bootstrap";
+import { isLikelyTechnicalMemory } from "@/lib/memory-quality";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -166,6 +167,7 @@ export async function parseClaudeCodeMemory(
     for (const section of sections) {
       for (const item of section.items) {
         const prefix = section.heading !== "default" ? `[${section.heading}] ` : "";
+        if (isLikelyTechnicalMemory(item.content)) continue;
         messages.push({
           role: "user",
           content: `${prefix}${item.content}`,

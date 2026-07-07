@@ -96,6 +96,8 @@ describe("commit", () => {
     expect(result.memoriesCreated).toBe(2);
     expect(result.reviewItemsCreated).toBe(2);
     expect(result.conflictsCreated).toBe(0);
+    expect(result.newMemoriesAutoApproved).toBe(0);
+    expect(result.newMemoriesQueuedForReview).toBe(2);
     expect(result.autoApproved).toBe(0);
     expect(result.autoSuperseded).toBe(0);
 
@@ -134,6 +136,8 @@ describe("commit", () => {
 
     expect(result.memoriesCreated).toBe(1);
     expect(result.reviewItemsCreated).toBe(0);
+    expect(result.newMemoriesAutoApproved).toBe(1);
+    expect(result.newMemoriesQueuedForReview).toBe(0);
     expect(mockedPrisma.memory.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -354,6 +358,70 @@ describe("commit", () => {
         data: expect.objectContaining({
           content: "User earns $200k",
           sensitive: true,
+          status: "pending",
+        }),
+      })
+    );
+  });
+
+  it("queues sensitive clean memories even when caller requests active creation", async () => {
+    const result = await commit({
+      sourceId: "src-1",
+      clean: [makeMemory({ content: "User earns $200k", sensitive: true })],
+      conflicts: [],
+      conversationMap: new Map(),
+      initialStatus: "active",
+    });
+
+    expect(result.newMemoriesAutoApproved).toBe(0);
+    expect(result.newMemoriesQueuedForReview).toBe(1);
+    expect(result.reviewItemsCreated).toBe(1);
+    const createArg = mockedPrisma.memory.create.mock.calls[0][0] as any;
+    expect(createArg.data.status).toBe("pending");
+    expect(createArg.data).not.toHaveProperty("approvedAt");
+  });
+
+  it("queues high-jeopardy clean memories even when not pre-marked sensitive", async () => {
+    const result = await commit({
+      sourceId: "src-1",
+      clean: [makeMemory({ content: "User's bank account is with Example Bank", sensitive: false })],
+      conflicts: [],
+      conversationMap: new Map(),
+      initialStatus: "active",
+    });
+
+    expect(result.newMemoriesAutoApproved).toBe(0);
+    expect(result.newMemoriesQueuedForReview).toBe(1);
+    expect(result.reviewItemsCreated).toBe(1);
+    const createArg = mockedPrisma.memory.create.mock.calls[0][0] as any;
+    expect(createArg.data.status).toBe("pending");
+  });
+
+  it("queues configured supersede conflicts for manual review", async () => {
+    const supersede = makeConflict("supersede", {
+      mergedContent: "User now prefers Python for all projects",
+      existingContent: "User prefers TypeScript",
+    });
+
+    const result = await commit({
+      sourceId: "src-1",
+      clean: [],
+      conflicts: [supersede],
+      conversationMap: new Map(),
+      initialStatus: "active",
+      reviewConflictTypes: ["supersede", "contradiction"],
+    });
+
+    expect(result.autoSuperseded).toBe(0);
+    expect(result.conflictsCreated).toBe(1);
+    expect(result.memoriesCreated).toBe(1);
+    expect(result.reviewItemsCreated).toBe(1);
+    expect(result.newMemoriesQueuedForReview).toBe(1);
+    expect(mockedPrisma.memory.update).not.toHaveBeenCalled();
+    expect(mockedPrisma.conflict.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: "supersede",
           status: "pending",
         }),
       })

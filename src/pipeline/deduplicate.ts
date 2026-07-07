@@ -167,8 +167,16 @@ export async function deduplicateMemories(
   let duplicatesDropped = 0;
   let totalInput = 0;
   let totalOutput = 0;
+  const seenBatchExactKeys = new Set<string>();
 
   for (const newMem of newMemories) {
+    const batchExactKey = `${newMem.category}:${normalizeForExactMatch(newMem.content)}`;
+    if (seenBatchExactKeys.has(batchExactKey)) {
+      duplicatesDropped++;
+      continue;
+    }
+    seenBatchExactKeys.add(batchExactKey);
+
     // Step 1: Find existing active memories in the same category
     const candidates = await prisma.memory.findMany({
       where: {

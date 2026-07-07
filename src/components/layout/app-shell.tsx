@@ -3,11 +3,9 @@
 import { usePathname } from "next/navigation";
 import { TopNav } from "./top-nav";
 
-const MARKETING_ROUTES = ["/landing"];
-
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isMarketing = MARKETING_ROUTES.some((r) => pathname.startsWith(r));
+  const isMarketing = pathname === "/" || pathname.startsWith("/landing");
 
   if (isMarketing) {
     return <>{children}</>;

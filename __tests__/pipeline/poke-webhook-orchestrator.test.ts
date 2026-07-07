@@ -53,6 +53,8 @@ describe("PokeWebhookOrchestrator", () => {
       referencesUpdated: 0,
       conflictsCreated: 0,
       reviewItemsCreated: 0,
+      newMemoriesAutoApproved: 1,
+      newMemoriesQueuedForReview: 0,
       propagatedDestinations: [{ type: "claude_code", name: "Claude", success: true }],
     });
     mockedPrisma.memory.findFirst.mockResolvedValue({ id: "favorite-color" } as any);

@@ -40,7 +40,7 @@ export function TopNav() {
         </Link>
 
         {/* Nav Links */}
-        <div className="flex items-center gap-0.5">
+        <div className="hidden items-center gap-0.5 sm:flex">
           {NAV_LINKS.map((link) => {
             const isActive =
               link.href === "/"
@@ -69,7 +69,7 @@ export function TopNav() {
         </div>
 
         {/* Status */}
-        <div className="flex items-center gap-2">
+        <div className="hidden items-center gap-2 sm:flex">
           <div className="h-2 w-2 rounded-full bg-lime maze-pulse" />
           <span className="text-[11px] text-muted-foreground font-normal tracking-wide uppercase" style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}>
             Active

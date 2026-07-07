@@ -1,0 +1,1 @@
+ALTER TABLE "Memory" ADD COLUMN "manuallyStrong" BOOLEAN NOT NULL DEFAULT false;

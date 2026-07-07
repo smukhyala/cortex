@@ -114,4 +114,19 @@ describe("deduplicateMemories prefilter", () => {
       }),
     ]);
   });
+
+  it("drops exact duplicates within the same extracted batch before hitting storage", async () => {
+    mockedPrisma.memory.findMany.mockResolvedValue([]);
+
+    const result = await deduplicateMemories([
+      makeMemory("User prefers TypeScript."),
+      makeMemory("  user prefers typescript.  "),
+    ]);
+
+    expect(mockedPrisma.memory.findMany).toHaveBeenCalledTimes(1);
+    expect(mockedStructuredCall).not.toHaveBeenCalled();
+    expect(result.output.clean).toHaveLength(1);
+    expect(result.output.clean[0]?.content).toBe("User prefers TypeScript.");
+    expect(result.output.duplicatesDropped).toBe(1);
+  });
 });

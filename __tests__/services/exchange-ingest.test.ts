@@ -5,6 +5,11 @@ vi.mock("@/lib/db", () => {
     source: {
       findFirst: vi.fn(),
       create: vi.fn(),
+      findMany: vi.fn(),
+    },
+    memory: {
+      findMany: vi.fn(),
+      update: vi.fn(),
     },
     activityLog: {
       create: vi.fn(),
@@ -41,6 +46,9 @@ describe("ingestExchangeFacts", () => {
     vi.clearAllMocks();
     mockedPrisma.source.findFirst.mockResolvedValue({ id: "exchange-source" } as any);
     mockedPrisma.source.create.mockResolvedValue({ id: "created-source" } as any);
+    mockedPrisma.source.findMany.mockResolvedValue([]);
+    mockedPrisma.memory.findMany.mockResolvedValue([]);
+    mockedPrisma.memory.update.mockResolvedValue({} as any);
     mockedPrisma.activityLog.create.mockResolvedValue({} as any);
     mockedDeduplicate.mockResolvedValue({
       output: {
@@ -66,6 +74,8 @@ describe("ingestExchangeFacts", () => {
       memoriesCreated: 1,
       reviewItemsCreated: 0,
       conflictsCreated: 0,
+      newMemoriesAutoApproved: 1,
+      newMemoriesQueuedForReview: 0,
       autoApproved: 0,
       autoSuperseded: 0,
       referencesUpdated: 0,
@@ -86,6 +96,7 @@ describe("ingestExchangeFacts", () => {
       expect.objectContaining({
         sourceId: "exchange-source",
         initialStatus: "active",
+        reviewConflictTypes: ["supersede", "contradiction"],
       })
     );
     expect(mockedPropagate).toHaveBeenCalledWith(
@@ -95,6 +106,8 @@ describe("ingestExchangeFacts", () => {
       })
     );
     expect(result.memoriesCreated).toBe(1);
+    expect(result.newMemoriesAutoApproved).toBe(1);
+    expect(result.newMemoriesQueuedForReview).toBe(0);
   });
 
   it("sends Claude-learned facts to Poke through propagation", async () => {

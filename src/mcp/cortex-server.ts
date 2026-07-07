@@ -57,8 +57,15 @@ function inferCategory(topic: string): MemoryCategory {
 
 function summarizeExchangeResult(prefix: string, result: Awaited<ReturnType<typeof ingestExchangeFacts>>): string {
   const successCount = result.propagatedDestinations.filter((destination) => destination.success).length;
-  const parts = [`${prefix} ${result.memoriesCreated} active exchange memories.`];
-  if (result.referencesUpdated > 0) parts.push(`${result.referencesUpdated} existing memories reinforced.`);
+  const autoApproved = result.newMemoriesAutoApproved ?? 0;
+  const queuedForReview = result.newMemoriesQueuedForReview ?? result.reviewItemsCreated ?? 0;
+  const parts = [`${prefix} ${result.memoriesCreated} exchange memories.`];
+  if (autoApproved > 0) parts.push(`${autoApproved} auto-approved.`);
+  if (queuedForReview > 0) parts.push(`${queuedForReview} queued for manual approval.`);
+  if (result.memoriesCreated > 0 && autoApproved === 0 && queuedForReview === 0) {
+    parts.push("No new manual approval needed.");
+  }
+  if (result.referencesUpdated > 0) parts.push(`${result.referencesUpdated} existing memories updated or reinforced.`);
   if (result.conflictsCreated > 0) parts.push(`${result.conflictsCreated} conflicts need review.`);
   parts.push(`Propagated to ${successCount}/${result.propagatedDestinations.length} destinations.`);
   return parts.join(" ");

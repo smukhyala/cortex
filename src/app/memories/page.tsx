@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Search, Download, Archive, Brain, Pencil, Sparkles, GitMerge, X, Zap } from "lucide-react";
+import { Search, Download, Archive, Brain, Pencil, Sparkles, GitMerge, X, Zap, ChevronLeft, ChevronRight, Filter, Star, Trash2, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 interface Memory {
@@ -10,16 +10,25 @@ interface Memory {
   content: string;
   subject: string;
   category: string;
+  status: string;
   confidence: number;
   temporality: string;
   sensitive: boolean;
   referenceCount: number;
   lastReferencedAt: string;
+  manuallyStrong: boolean;
   strength: number;
   createdAt: string;
+  quality?: { isTechnical: boolean };
   source: { name: string; type: string; config: string };
   conversation: { title: string; externalId: string } | null;
 }
+
+type DisplayMemory = Memory & {
+  duplicateIds: string[];
+  duplicateGroupIds: string[];
+  duplicateCopies: number;
+};
 
 interface CategoryDef {
   slug: string;
@@ -37,6 +46,54 @@ interface PropagationDestination {
   success: boolean;
 }
 
+type MemoryFilter = "all" | "strong" | "recent" | "cleanup";
+type MemorySort = "strength" | "recent" | "references" | "category";
+type MemoryScope = "active" | "archive";
+
+const PAGE_SIZE_OPTIONS = [12, 24, 48];
+
+function normalizeDuplicateKey(memory: Memory): string {
+  return `${memory.category}:${memory.content
+    .toLowerCase()
+    .replace(/[`"'’.]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()}`;
+}
+
+function strongerMemory(a: Memory, b: Memory): Memory {
+  if (b.manuallyStrong !== a.manuallyStrong) return b.manuallyStrong ? b : a;
+  if (b.strength !== a.strength) return b.strength > a.strength ? b : a;
+  if (b.referenceCount !== a.referenceCount) return b.referenceCount > a.referenceCount ? b : a;
+  return new Date(b.lastReferencedAt) > new Date(a.lastReferencedAt) ? b : a;
+}
+
+function collapseDuplicateMemories(memories: Memory[]): DisplayMemory[] {
+  const groups = new Map<string, Memory[]>();
+  for (const memory of memories) {
+    const key = normalizeDuplicateKey(memory);
+    groups.set(key, [...(groups.get(key) ?? []), memory]);
+  }
+
+  return Array.from(groups.values()).map((group) => {
+    const representative = group.reduce(strongerMemory);
+    const duplicateIds = group
+      .filter((memory) => memory.id !== representative.id)
+      .map((memory) => memory.id);
+    return {
+      ...representative,
+      duplicateIds,
+      duplicateGroupIds: group.map((memory) => memory.id),
+      duplicateCopies: group.length,
+      referenceCount: group.reduce((sum, memory) => sum + memory.referenceCount, 0),
+      manuallyStrong: group.some((memory) => memory.manuallyStrong),
+      lastReferencedAt: group.reduce(
+        (latest, memory) => new Date(memory.lastReferencedAt) > new Date(latest) ? memory.lastReferencedAt : latest,
+        representative.lastReferencedAt
+      ),
+    };
+  });
+}
+
 export default function MemoriesPage() {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [categories, setCategories] = useState<CategoryDef[]>([]);
@@ -49,6 +106,13 @@ export default function MemoriesPage() {
   const [quickStatement, setQuickStatement] = useState("");
   const [quickLoading, setQuickLoading] = useState(false);
   const [pushingPoke, setPushingPoke] = useState(false);
+  const [scope, setScope] = useState<MemoryScope>("active");
+  const [filter, setFilter] = useState<MemoryFilter>("all");
+  const [sort, setSort] = useState<MemorySort>("strength");
+  const [pageSize, setPageSize] = useState(24);
+  const [page, setPage] = useState(1);
+  const [bulkArchiving, setBulkArchiving] = useState(false);
+  const [recentReferenceCutoff] = useState(() => Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   useEffect(() => {
     fetch("/api/categories").then(r => r.json()).then(setCategories);
@@ -57,7 +121,8 @@ export default function MemoriesPage() {
   const categoryColors: Record<string, string> = Object.fromEntries(categories.map(c => [c.slug, c.color]));
 
   const fetchMemories = useCallback(async () => {
-    const params = new URLSearchParams({ status: "active" });
+    setLoading(true);
+    const params = new URLSearchParams({ status: scope === "archive" ? "archived" : "active" });
     if (selectedCategory) params.set("category", selectedCategory);
     if (search) params.set("q", search);
     try {
@@ -68,7 +133,7 @@ export default function MemoriesPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, search]);
+  }, [scope, selectedCategory, search]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -79,11 +144,92 @@ export default function MemoriesPage() {
 
   async function handleArchive(id: string) {
     try {
-      await fetch(`/api/memories/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/memories/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "archived",
+          reason: "Archived by user",
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
       setMemories((prev) => prev.filter((m) => m.id !== id));
       toast.success("Memory archived");
     } catch {
-      toast.error("Failed to archive");
+      toast.error("Failed to archive memory");
+    }
+  }
+
+  async function handleRestore(id: string) {
+    try {
+      const res = await fetch(`/api/memories/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "active" }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setMemories((prev) => prev.filter((m) => m.id !== id));
+      toast.success("Memory restored");
+    } catch {
+      toast.error("Failed to restore memory");
+    }
+  }
+
+  async function handleDeleteFromArchive(id: string) {
+    try {
+      const res = await fetch(`/api/memories/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed");
+      setMemories((prev) => prev.filter((m) => m.id !== id));
+      toast.success("Memory deleted");
+    } catch {
+      toast.error("Failed to delete memory");
+    }
+  }
+
+  async function handleArchiveTechnical(ids: string[]) {
+    if (ids.length === 0) return;
+    setBulkArchiving(true);
+    try {
+      await Promise.all(
+        ids.map((id) =>
+          fetch(`/api/memories/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              status: "archived",
+              reason: "Archived as technical implementation detail",
+            }),
+          })
+        )
+      );
+      setMemories((prev) => prev.filter((m) => !ids.includes(m.id)));
+      toast.success(`Archived ${ids.length} technical memor${ids.length === 1 ? "y" : "ies"}`);
+    } catch {
+      toast.error("Failed to archive technical memories");
+    } finally {
+      setBulkArchiving(false);
+    }
+  }
+
+  async function handleMergeDuplicates(memory: DisplayMemory) {
+    if (memory.duplicateGroupIds.length < 2) return;
+    try {
+      const res = await fetch("/api/deduplicate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          groups: [{
+            canonical: memory.content,
+            duplicateIds: memory.duplicateGroupIds,
+          }],
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      toast.success(`Merged ${data.merged} group, archived ${data.archived} duplicate${data.archived === 1 ? "" : "s"}`);
+      await fetchMemories();
+    } catch {
+      toast.error("Failed to merge duplicates");
     }
   }
 
@@ -99,6 +245,22 @@ export default function MemoriesPage() {
       toast.success("Memory updated");
     } catch {
       toast.error("Failed to update");
+    }
+  }
+
+  async function handleToggleStrong(memory: DisplayMemory) {
+    const nextValue = !memory.manuallyStrong;
+    try {
+      const res = await fetch(`/api/memories/${memory.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ manuallyStrong: nextValue }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      await fetchMemories();
+      toast.success(nextValue ? "Marked as strong" : "Removed manual strong mark");
+    } catch {
+      toast.error("Failed to update memory strength");
     }
   }
 
@@ -186,7 +348,7 @@ export default function MemoriesPage() {
       if (res.ok) {
         const destinations = (data.propagation?.destinations ?? []) as PropagationDestination[];
         const destCount = destinations.filter((d) => d.success).length;
-        toast.success(`${data.action === "create" ? "Created" : data.action === "update" ? "Updated" : "Deleted"}: ${data.content}. Propagated to ${destCount} platform(s).`);
+        toast.success(data.message || `${data.action === "create" ? "Created" : data.action === "update" ? "Updated" : "Deleted"}: ${data.content}. Propagated to ${destCount} platform(s).`);
         setQuickStatement("");
         fetchMemories();
       } else {
@@ -217,80 +379,137 @@ export default function MemoriesPage() {
   function strengthTooltip(memory: Memory): string {
     const date = new Date(memory.lastReferencedAt);
     const dateStr = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    return `Referenced ${memory.referenceCount}x · Last seen ${dateStr} · Strength ${memory.strength.toFixed(2)}`;
+    return `${memory.manuallyStrong ? "Manually marked strong · " : ""}Referenced ${memory.referenceCount}x · Last seen ${dateStr} · Strength ${memory.strength.toFixed(2)}`;
   }
 
+  const uniqueMemories = collapseDuplicateMemories(memories);
+  const hiddenDuplicateCount = memories.length - uniqueMemories.length;
   const categoryCounts = new Map<string, number>();
-  for (const m of memories) {
+  for (const m of uniqueMemories) {
     categoryCounts.set(m.category, (categoryCounts.get(m.category) || 0) + 1);
   }
 
-  const filtered = memories.filter((m) => !selectedCategory || m.category === selectedCategory);
+  const isArchiveScope = scope === "archive";
+  const cleanupCount = uniqueMemories.filter((m) => m.quality?.isTechnical).length;
+  const strongCount = uniqueMemories.filter((m) => m.strength >= 0.45).length;
+  const recentCount = uniqueMemories.filter((m) => new Date(m.lastReferencedAt).getTime() >= recentReferenceCutoff).length;
+
+  const filtered = uniqueMemories
+    .filter((m) => !selectedCategory || m.category === selectedCategory)
+    .filter((m) => {
+      if (filter === "strong") return m.strength >= 0.45;
+      if (filter === "recent") return new Date(m.lastReferencedAt).getTime() >= recentReferenceCutoff;
+      if (filter === "cleanup") return Boolean(m.quality?.isTechnical);
+      return true;
+    })
+    .sort((a, b) => {
+      if (sort === "recent") return new Date(b.lastReferencedAt).getTime() - new Date(a.lastReferencedAt).getTime();
+      if (sort === "references") return b.referenceCount - a.referenceCount || b.strength - a.strength;
+      if (sort === "category") return a.category.localeCompare(b.category) || b.strength - a.strength;
+      return b.strength - a.strength || b.referenceCount - a.referenceCount;
+    });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * pageSize;
+  const pageItems = filtered.slice(pageStart, pageStart + pageSize);
+  const visibleTechnicalIds = pageItems.filter((m) => m.quality?.isTechnical).map((m) => m.id);
+  const visibleDuplicateGroups = pageItems.filter((m) => m.duplicateCopies > 1);
 
   return (
     <div className="space-y-10">
-      <div className="flex items-center justify-between" data-animate>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between" data-animate>
         <div>
           <p className="maze-eyebrow mb-4">Library</p>
-          <h1>Memories</h1>
+          <h1>{isArchiveScope ? "Archive" : "Memories"}</h1>
           <p className="maze-body mt-3">
-            {memories.length} active memor{memories.length !== 1 ? "ies" : "y"}
+            {uniqueMemories.length} {isArchiveScope ? "archived" : "unique"} memor{uniqueMemories.length !== 1 ? "ies" : "y"}
+            {!isArchiveScope && hiddenDuplicateCount > 0 && (
+              <> · {hiddenDuplicateCount} duplicate cop{hiddenDuplicateCount === 1 ? "y" : "ies"} hidden</>
+            )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            className="maze-btn maze-btn-outline gap-1.5 text-[13px]"
-            onClick={handlePushToPoke}
-            disabled={pushingPoke}
-          >
-            <Zap className={`h-3.5 w-3.5 ${pushingPoke ? "animate-spin" : ""}`} />
-            {pushingPoke ? "Syncing..." : "Sync Poke"}
-          </button>
-          <button
-            className="maze-btn maze-btn-outline gap-1.5 text-[13px]"
-            onClick={handleDedupScan}
-            disabled={dedupRunning}
-          >
-            <Sparkles className={`h-3.5 w-3.5 ${dedupRunning ? "animate-spin" : ""}`} />
-            {dedupRunning ? "Scanning..." : "Deduplicate"}
-          </button>
-          <div className="relative">
-            <button className="maze-btn gap-1.5 text-[13px]" onClick={() => {
-              const el = document.getElementById("export-menu");
-              if (el) el.classList.toggle("hidden");
-            }}>
-              <Download className="h-3.5 w-3.5" />
-              Export
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
+            <button
+              className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[13px] font-medium transition-colors ${scope === "active" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              onClick={() => {
+                setScope("active");
+                setFilter("all");
+                setPage(1);
+              }}
+            >
+              <Brain className="h-3.5 w-3.5" />
+              Active
             </button>
-          <div id="export-menu" className="hidden absolute right-0 mt-2 w-56 maze-card py-1 z-50">
-            {[
-              { key: "chatgpt", label: "ChatGPT (Custom Instructions)" },
-              { key: "claude", label: "Claude (CLAUDE.md)" },
-              { key: "json", label: "JSON (full export)" },
-              { key: "poke", label: "Push to Poke" },
-            ].map(({ key, label }) => (
+            <button
+              className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[13px] font-medium transition-colors ${scope === "archive" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              onClick={() => {
+                setScope("archive");
+                setFilter("all");
+                setPage(1);
+              }}
+            >
+              <Archive className="h-3.5 w-3.5" />
+              Archive
+            </button>
+          </div>
+          {!isArchiveScope && (
+            <>
               <button
-                key={key}
-                className="w-full text-left px-4 py-2.5 text-[13px] hover:bg-muted transition-colors"
-                onClick={() => {
-                  if (key === "poke") {
-                    handlePushToPoke();
-                  } else {
-                    handleExport(key);
-                  }
-                  document.getElementById("export-menu")?.classList.add("hidden");
-                }}
+                className="maze-btn maze-btn-outline gap-1.5 text-[13px]"
+                onClick={handlePushToPoke}
+                disabled={pushingPoke}
               >
-                {label}
+                <Zap className={`h-3.5 w-3.5 ${pushingPoke ? "animate-spin" : ""}`} />
+                {pushingPoke ? "Syncing..." : "Sync Poke"}
               </button>
-            ))}
-          </div>
-          </div>
+              <button
+                className="maze-btn maze-btn-outline gap-1.5 text-[13px]"
+                onClick={handleDedupScan}
+                disabled={dedupRunning}
+              >
+                <Sparkles className={`h-3.5 w-3.5 ${dedupRunning ? "animate-spin" : ""}`} />
+                {dedupRunning ? "Scanning..." : "Deduplicate"}
+              </button>
+              <div className="relative">
+                <button className="maze-btn gap-1.5 text-[13px]" onClick={() => {
+                  const el = document.getElementById("export-menu");
+                  if (el) el.classList.toggle("hidden");
+                }}>
+                  <Download className="h-3.5 w-3.5" />
+                  Export
+                </button>
+                <div id="export-menu" className="hidden absolute right-0 mt-2 w-56 maze-card py-1 z-50">
+                  {[
+                    { key: "chatgpt", label: "ChatGPT (Custom Instructions)" },
+                    { key: "claude", label: "Claude (CLAUDE.md)" },
+                    { key: "json", label: "JSON (full export)" },
+                    { key: "poke", label: "Push to Poke" },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      className="w-full text-left px-4 py-2.5 text-[13px] hover:bg-muted transition-colors"
+                      onClick={() => {
+                        if (key === "poke") {
+                          handlePushToPoke();
+                        } else {
+                          handleExport(key);
+                        }
+                        document.getElementById("export-menu")?.classList.add("hidden");
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/* Dedup Results Panel */}
-      {dedupResult && dedupResult.groups.length > 0 && (
+      {!isArchiveScope && dedupResult && dedupResult.groups.length > 0 && (
         <div className="maze-block space-y-4" data-animate>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -330,6 +549,7 @@ export default function MemoriesPage() {
       )}
 
       {/* Quick Statement */}
+      {!isArchiveScope && (
       <div className="bg-lime-50/50 border border-lime-200 rounded-lg p-4 mb-6">
         <div className="flex items-center gap-2 mb-2">
           <Sparkles size={16} className="text-lime-600" />
@@ -354,30 +574,119 @@ export default function MemoriesPage() {
           </button>
         </div>
       </div>
+      )}
 
       {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search memories..."
-          className="pl-10 h-10 rounded-lg border-border shadow-sm"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && fetchMemories()}
-        />
+      <div className="maze-block space-y-4">
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search memories..."
+              className="pl-10 h-10 rounded-lg border-border shadow-sm"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && fetchMemories()}
+            />
+          </div>
+          <select
+            value={sort}
+            onChange={(e) => {
+              setSort(e.target.value as MemorySort);
+              setPage(1);
+            }}
+            className="h-10 rounded-lg border border-border bg-background px-3 text-[13px] text-foreground"
+            aria-label="Sort memories"
+          >
+            <option value="strength">Strongest first</option>
+            <option value="recent">Recently referenced</option>
+            <option value="references">Most referenced</option>
+            <option value="category">Category</option>
+          </select>
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setPage(1);
+            }}
+            className="h-10 rounded-lg border border-border bg-background px-3 text-[13px] text-foreground"
+            aria-label="Memories per page"
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>{size} per page</option>
+            ))}
+          </select>
+        </div>
+
+        {!isArchiveScope && (
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { key: "all", label: "All", count: uniqueMemories.length },
+            { key: "strong", label: "Strong", count: strongCount },
+            { key: "recent", label: "Recent", count: recentCount },
+            { key: "cleanup", label: "Cleanup", count: cleanupCount },
+          ].map((item) => (
+            <button
+              key={item.key}
+              onClick={() => {
+                setFilter(item.key as MemoryFilter);
+                setPage(1);
+              }}
+              className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-[13px] font-medium transition-colors ${
+                filter === item.key ? "bg-foreground text-background" : "bg-background text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {item.key === "cleanup" && <Filter className="h-3.5 w-3.5" />}
+              {item.label}
+              <span className={filter === item.key ? "text-background/70" : "text-muted-foreground/70"}>
+                {item.count}
+              </span>
+            </button>
+          ))}
+          {visibleTechnicalIds.length > 0 && (
+            <button
+              className="maze-btn maze-btn-outline ml-auto h-9 text-[12px]"
+              onClick={() => handleArchiveTechnical(visibleTechnicalIds)}
+              disabled={bulkArchiving}
+            >
+              <Archive className="h-3.5 w-3.5" />
+              {bulkArchiving ? "Archiving..." : `Archive visible technical (${visibleTechnicalIds.length})`}
+            </button>
+          )}
+          {visibleDuplicateGroups.length > 0 && (
+            <button
+              className="maze-btn maze-btn-outline h-9 text-[12px]"
+              onClick={async () => {
+                for (const memory of visibleDuplicateGroups) {
+                  await handleMergeDuplicates(memory);
+                }
+              }}
+            >
+              <GitMerge className="h-3.5 w-3.5" />
+              Merge visible duplicate groups ({visibleDuplicateGroups.length})
+            </button>
+          )}
+        </div>
+        )}
       </div>
 
-      <div className="flex gap-8">
+      <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
         {/* Category sidebar */}
-        <div className="w-48 shrink-0 space-y-0.5">
+        <div className="shrink-0 space-y-0.5 lg:w-48">
           <button
             className={`w-full text-left px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
               selectedCategory === null ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
             }`}
-            onClick={() => setSelectedCategory(null)}
+            onClick={() => {
+              setSelectedCategory(null);
+              setPage(1);
+            }}
           >
             All
-            <span className="float-right text-[11px] text-muted-foreground">{memories.length}</span>
+            <span className="float-right text-[11px] text-muted-foreground">{uniqueMemories.length}</span>
           </button>
           {categories.map((cat) => {
             const count = categoryCounts.get(cat.slug) || 0;
@@ -387,7 +696,10 @@ export default function MemoriesPage() {
                 className={`w-full text-left px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
                   selectedCategory === cat.slug ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 }`}
-                onClick={() => setSelectedCategory(cat.slug)}
+                onClick={() => {
+                  setSelectedCategory(cat.slug);
+                  setPage(1);
+                }}
               >
                 {cat.label}
                 {count > 0 && <span className="float-right text-[11px] text-muted-foreground">{count}</span>}
@@ -398,27 +710,53 @@ export default function MemoriesPage() {
 
         {/* Memory list */}
         <div className="flex-1 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[13px] text-muted-foreground">
+              Showing {filtered.length === 0 ? 0 : pageStart + 1}-{Math.min(pageStart + pageSize, filtered.length)} of {filtered.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                className="maze-btn maze-btn-outline h-8 w-8 min-h-0 p-0"
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage <= 1}
+                title="Previous page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-[12px] text-muted-foreground">
+                Page {currentPage} / {totalPages}
+              </span>
+              <button
+                className="maze-btn maze-btn-outline h-8 w-8 min-h-0 p-0"
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage >= totalPages}
+                title="Next page"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
           {loading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => <div key={i} className="maze-card h-20 animate-pulse" />)}
             </div>
-          ) : filtered.length === 0 ? (
+          ) : pageItems.length === 0 ? (
             <div className="maze-card flex flex-col items-center justify-center py-14 text-center">
               <div className="h-14 w-14 rounded-2xl bg-lime/10 flex items-center justify-center mb-5">
                 <Brain className="h-6 w-6 text-lime" />
               </div>
-              <h3 className="text-base font-semibold">No memories yet</h3>
+              <h3 className="text-base font-semibold">{isArchiveScope ? "Archive is empty" : "No memories yet"}</h3>
               <p className="text-sm text-muted-foreground mt-1.5">
-                Upload a conversation export to get started
+                {isArchiveScope ? "Archived memories will appear here" : "Upload a conversation export to get started"}
               </p>
             </div>
           ) : (
-            filtered.map((memory) => (
+            pageItems.map((memory) => (
               <div
                 key={memory.id}
                 className={`maze-card group relative overflow-hidden ${
                   memory.strength < 0.1 ? "opacity-60" : ""
-                } ${memory.strength > 0.7 ? "border-lime/30" : ""}`}
+                } ${memory.strength > 0.7 ? "border-lime/30" : ""} ${memory.manuallyStrong ? "ring-1 ring-amber-300/70" : ""} ${memory.quality?.isTechnical ? "border-amber-300/70 bg-amber-50/30" : ""}`}
               >
                 <div className="flex items-start justify-between p-5">
                   <div className="min-w-0 flex-1">
@@ -448,15 +786,58 @@ export default function MemoriesPage() {
                       {memory.sensitive && (
                         <span className="maze-tag bg-red-50 text-red-600">sensitive</span>
                       )}
+                      {memory.quality?.isTechnical && (
+                        <span className="maze-tag bg-amber-100 text-amber-700">technical cleanup</span>
+                      )}
+                      {memory.manuallyStrong && (
+                        <span className="maze-tag bg-amber-100 text-amber-700">
+                          <Star className="h-3 w-3 fill-current" />
+                          manual strong
+                        </span>
+                      )}
+                      {memory.duplicateCopies > 1 && (
+                        <span className="maze-tag bg-lime/10 text-lime">
+                          {memory.duplicateCopies} copies
+                        </span>
+                      )}
+                      <span className="text-[11px] text-muted-foreground">
+                        {memory.referenceCount} ref{memory.referenceCount === 1 ? "" : "s"} · strength {Math.round(memory.strength * 100)}%
+                      </span>
                     </div>
                   </div>
-                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-4">
-                    <button className="maze-btn maze-btn-ghost h-8 w-8 p-0 min-h-0 rounded-lg" onClick={() => setEditDialog({ memory, content: memory.content })} title="Edit">
-                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                    </button>
-                    <button className="maze-btn maze-btn-ghost h-8 w-8 p-0 min-h-0 rounded-lg" onClick={() => handleArchive(memory.id)} title="Archive">
-                      <Archive className="h-3.5 w-3.5 text-muted-foreground" />
-                    </button>
+                  <div className="flex gap-0.5 opacity-100 transition-opacity shrink-0 ml-4">
+                    {isArchiveScope ? (
+                      <>
+                        <button className="maze-btn maze-btn-ghost h-8 w-8 p-0 min-h-0 rounded-lg" onClick={() => handleRestore(memory.id)} title="Restore">
+                          <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                        <button className="maze-btn maze-btn-ghost h-8 w-8 p-0 min-h-0 rounded-lg" onClick={() => handleDeleteFromArchive(memory.id)} title="Delete">
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className={`maze-btn maze-btn-ghost h-8 w-8 p-0 min-h-0 rounded-lg ${memory.manuallyStrong ? "text-amber-500" : "text-muted-foreground"}`}
+                          onClick={() => handleToggleStrong(memory)}
+                          title={memory.manuallyStrong ? "Remove manual strong mark" : "Mark as strong"}
+                          aria-label={memory.manuallyStrong ? "Remove manual strong mark" : "Mark as strong"}
+                        >
+                          <Star className={`h-3.5 w-3.5 ${memory.manuallyStrong ? "fill-current" : ""}`} />
+                        </button>
+                        {memory.duplicateCopies > 1 && (
+                          <button className="maze-btn maze-btn-ghost h-8 w-8 p-0 min-h-0 rounded-lg" onClick={() => handleMergeDuplicates(memory)} title="Merge duplicate copies">
+                            <GitMerge className="h-3.5 w-3.5 text-muted-foreground" />
+                          </button>
+                        )}
+                        <button className="maze-btn maze-btn-ghost h-8 w-8 p-0 min-h-0 rounded-lg" onClick={() => setEditDialog({ memory, content: memory.content })} title="Edit">
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                        <button className="maze-btn maze-btn-ghost h-8 w-8 p-0 min-h-0 rounded-lg" onClick={() => handleArchive(memory.id)} title="Archive">
+                          <Archive className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
                 {/* Heat bar */}

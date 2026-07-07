@@ -29,26 +29,51 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await req.json();
+  const nextStatus = typeof body.status === "string" ? body.status : undefined;
 
   const memory = await prisma.memory.update({
     where: { id },
     data: {
       ...(body.content !== undefined && { content: body.content }),
       ...(body.category !== undefined && { category: body.category }),
-      ...(body.status !== undefined && { status: body.status }),
-      ...(body.status === "archived" && {
+      ...(nextStatus !== undefined && { status: nextStatus }),
+      ...(body.manuallyStrong !== undefined && { manuallyStrong: Boolean(body.manuallyStrong) }),
+      ...(nextStatus === "archived" && {
         archivedAt: new Date(),
         archivedReason: body.reason || "Manual archive",
+      }),
+      ...(nextStatus === "deleted" && {
+        archivedAt: new Date(),
+        archivedReason: body.reason || "Deleted from archive",
+      }),
+      ...(nextStatus === "active" && {
+        archivedAt: null,
+        archivedReason: null,
       }),
     },
   });
 
-  await notifyMemoryChange({
-    action: memory.status === "archived" ? "archive" : "update",
-    memoryId: memory.id,
-    content: memory.content,
-    category: memory.category,
-  });
+  const action =
+    nextStatus === "archived"
+        ? "archive"
+        : nextStatus === "deleted"
+          ? "delete"
+          : nextStatus === "active"
+            ? "restore"
+            : "update";
+  const shouldPropagate =
+    body.content !== undefined ||
+    body.category !== undefined ||
+    nextStatus !== undefined;
+
+  if (shouldPropagate) {
+    await notifyMemoryChange({
+      action,
+      memoryId: memory.id,
+      content: memory.content,
+      category: memory.category,
+    });
+  }
 
   return NextResponse.json(memory);
 }
@@ -58,9 +83,24 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const existing = await prisma.memory.findUnique({
+    where: { id },
+  });
+
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (existing.status !== "archived") {
+    return NextResponse.json(
+      { error: "Memories can only be deleted from Archive. Archive this memory first." },
+      { status: 409 }
+    );
+  }
+
   const memory = await prisma.memory.update({
     where: { id },
-    data: { status: "archived", archivedAt: new Date(), archivedReason: "Deleted by user" },
+    data: { status: "deleted", archivedAt: new Date(), archivedReason: "Deleted from archive" },
   });
 
   await notifyMemoryChange({
@@ -70,5 +110,5 @@ export async function DELETE(
     category: memory.category,
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, status: "deleted" });
 }

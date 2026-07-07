@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { computeMemoryStrength } from "@/lib/memory-strength";
 import { notifyMemoryChange } from "@/services/memory-change";
+import { isLikelyTechnicalMemory } from "@/lib/memory-quality";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -21,12 +22,33 @@ export async function GET(req: NextRequest) {
     },
   });
 
+  const now = new Date();
   const memoriesWithStrength = memories
-    .map((m) => ({
-      ...m,
-      strength: computeMemoryStrength(m.referenceCount, new Date(m.lastReferencedAt)),
-    }))
-    .sort((a, b) => b.strength - a.strength);
+    .map((m) => {
+      const isTechnical = isLikelyTechnicalMemory(m.content);
+      return {
+        ...m,
+        strength: computeMemoryStrength(
+          m.referenceCount,
+          new Date(m.lastReferencedAt),
+          now,
+          {
+            content: m.content,
+            category: m.category,
+            isTechnical,
+            manuallyStrong: m.manuallyStrong,
+          }
+        ),
+        quality: {
+          isTechnical,
+        },
+      };
+    })
+    .sort((a, b) =>
+      b.strength - a.strength ||
+      b.referenceCount - a.referenceCount ||
+      b.lastReferencedAt.getTime() - a.lastReferencedAt.getTime()
+    );
 
   return NextResponse.json(memoriesWithStrength);
 }

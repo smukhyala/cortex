@@ -95,6 +95,22 @@ describe("parseClaudeCodeMemory", () => {
     expect(conversations[0].messages[0].content).toContain("User is a developer");
   });
 
+  it("skips technical implementation details from Claude Code memory files", async () => {
+    const content = [
+      "## Projects",
+      "",
+      "- User's project stores per-task artifacts (conversations, history.json, result.json, screenshots) in `logs/webarena/<arm_id>/<task_id>/`.",
+      "- User prefers concise product updates.",
+      "- User uses a `make smoke` command to run smoke tests against the Anthropic API after adding an API key.",
+    ].join("\n");
+    await writeFile(path.join(tmpDir, "CLAUDE.md"), content);
+
+    const conversations = await parseClaudeCodeMemory(tmpDir);
+    expect(conversations.length).toBe(1);
+    expect(conversations[0].messages).toHaveLength(1);
+    expect(conversations[0].messages[0].content).toContain("User prefers concise product updates");
+  });
+
   it("reads from .claude/CLAUDE.md subdirectory", async () => {
     await mkdir(path.join(tmpDir, ".claude"), { recursive: true });
     const content = "## Preferences\n\n- Prefers dark mode";
@@ -211,7 +227,7 @@ describe("writeClaudeCodeMemory", () => {
     });
 
     expect(contents).toContain("Prefers Next.js App Router");
-    expect(contents).toContain("Uses Prisma with SQLite");
+    expect(contents).not.toContain("Uses Prisma with SQLite");
     expect(contents).toContain("Name is Sanjay");
   });
 

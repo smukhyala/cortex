@@ -50,6 +50,9 @@ describe("createCortexMcpServer", () => {
       memoriesCreated: 1,
       referencesUpdated: 0,
       conflictsCreated: 0,
+      reviewItemsCreated: 0,
+      newMemoriesAutoApproved: 1,
+      newMemoriesQueuedForReview: 0,
       propagatedDestinations: [{ type: "poke", name: "Poke", success: true }],
     });
   });
@@ -92,6 +95,31 @@ describe("createCortexMcpServer", () => {
     expect(ingestExchangeFactsMock).toHaveBeenCalledWith(
       expect.objectContaining({ origin: "claude" })
     );
+  });
+
+  it("reports whether exchange memories were auto-approved or queued for manual approval", async () => {
+    ingestExchangeFactsMock.mockResolvedValueOnce({
+      memoriesCreated: 2,
+      referencesUpdated: 1,
+      conflictsCreated: 1,
+      reviewItemsCreated: 1,
+      newMemoriesAutoApproved: 1,
+      newMemoriesQueuedForReview: 1,
+      propagatedDestinations: [],
+    });
+    createCortexMcpServer({ defaultOrigin: "claude" });
+
+    const result = await tool("cortex_log_context").handler({
+      facts: [
+        { content: "User prefers concise answers", category: "preferences" },
+        { content: "User has sensitive context", category: "identity" },
+      ],
+    });
+
+    expect(result.content[0].text).toContain("1 auto-approved.");
+    expect(result.content[0].text).toContain("1 queued for manual approval.");
+    expect(result.content[0].text).toContain("1 existing memories updated or reinforced.");
+    expect(result.content[0].text).toContain("1 conflicts need review.");
   });
 
   it("answers personal questions with direct Cortex matches and broader context", async () => {
