@@ -11,6 +11,57 @@ function formatDate(date: Date | null | undefined): string {
   return date.toISOString().split("T")[0];
 }
 
+const DEDUPE_STOPWORDS = new Set([
+  "user",
+  "users",
+  "the",
+  "and",
+  "or",
+  "for",
+  "with",
+  "from",
+  "that",
+  "this",
+  "has",
+  "have",
+  "had",
+  "was",
+  "were",
+  "are",
+  "is",
+  "been",
+  "being",
+  "would",
+  "could",
+  "should",
+  "hypothetical",
+]);
+
+function memoryKeywords(content: string): Set<string> {
+  const words = content.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+  return new Set(
+    words.filter((word) => word.length > 2 && !DEDUPE_STOPWORDS.has(word))
+  );
+}
+
+function shouldCompareCandidate(existingContent: string, newContent: string): boolean {
+  if (normalizeForExactMatch(existingContent) === normalizeForExactMatch(newContent)) {
+    return true;
+  }
+
+  const existingKeywords = memoryKeywords(existingContent);
+  const newKeywords = memoryKeywords(newContent);
+  for (const keyword of newKeywords) {
+    if (existingKeywords.has(keyword)) return true;
+  }
+
+  return false;
+}
+
+function normalizeForExactMatch(content: string): string {
+  return content.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 // ─── LLM Comparison Schema ─────────────────────────────────────────────────
 
 const ComparisonResultSchema = z.object({
@@ -132,7 +183,24 @@ export async function deduplicateMemories(
       },
     });
 
-    if (candidates.length === 0) {
+    const exactDuplicate = candidates.find(
+      (candidate) => normalizeForExactMatch(candidate.content) === normalizeForExactMatch(newMem.content)
+    );
+    if (exactDuplicate) {
+      duplicatesDropped++;
+      duplicateReferences.push({
+        existingMemoryId: exactDuplicate.id,
+        newMemory: newMem,
+        reasoning: "Exact duplicate memory content.",
+      });
+      continue;
+    }
+
+    const plausibleCandidates = candidates.filter((candidate) =>
+      shouldCompareCandidate(candidate.content, newMem.content)
+    );
+
+    if (plausibleCandidates.length === 0) {
       // No existing memories in this category — no conflict possible
       clean.push(newMem);
       continue;
@@ -141,7 +209,7 @@ export async function deduplicateMemories(
     // Step 2: Compare against each candidate via LLM
     let conflictFound = false;
 
-    for (const candidate of candidates) {
+    for (const candidate of plausibleCandidates) {
       try {
         const comparison = await compareMemories(candidate, newMem);
         totalInput += comparison.tokens.input;

@@ -140,6 +140,28 @@ describe("PokeWebhookOrchestrator", () => {
     );
   });
 
+  it("creates hypothetical naming preferences as new memories without an LLM pass", async () => {
+    await new PokeWebhookOrchestrator().run({
+      event: "message.created",
+      threadId: "thread-4",
+      message: { role: "user", text: "If I had a cat it would be called boris" },
+    });
+
+    expect(mockedStructuredCall).not.toHaveBeenCalled();
+    expect(mockedIngestExchangeFacts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        origin: "poke",
+        facts: [
+          {
+            content: "User would name a hypothetical cat Boris.",
+            category: "preferences",
+            sensitive: false,
+          },
+        ],
+      })
+    );
+  });
+
   it("does not ingest when the webhook contains no user text", async () => {
     const result = await new PokeWebhookOrchestrator().run({
       event: "message.created",

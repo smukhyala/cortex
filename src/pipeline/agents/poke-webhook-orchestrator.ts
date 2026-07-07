@@ -88,6 +88,14 @@ function cleanPreferenceValue(value: string): string {
     .trim();
 }
 
+function capitalizeWords(value: string): string {
+  return value
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 async function inferFavoriteColorFact(textProcessed: string): Promise<ExchangeFact[]> {
   const text = textProcessed.replace(/^User:\s*/gm, "").trim();
   const favoriteColorMatch = text.match(/(?:my\s+)?favou?rite\s+colou?r\s+is\s+(?:now\s+)?([^.\n!?]+)/i);
@@ -115,6 +123,23 @@ async function inferFavoriteColorFact(textProcessed: string): Promise<ExchangeFa
   return color ? [{ content: `User's favorite color is ${color}.`, category: "preferences" }] : [];
 }
 
+function inferHypotheticalNamingFact(textProcessed: string): ExchangeFact[] {
+  const text = textProcessed.replace(/^User:\s*/gm, "").trim();
+  const match = text.match(
+    /\bif\s+i\s+(?:had|have|got|owned)\s+(?:a|an)\s+([a-z][a-z\s-]*?)\s+(?:it|they|he|she)?\s*would\s+be\s+(?:called|named)\s+([^.\n!?]+)/i
+  );
+  if (!match?.[1] || !match[2]) return [];
+
+  const subject = match[1].trim().toLowerCase();
+  const name = capitalizeWords(match[2].trim());
+  if (!subject || !name) return [];
+
+  return [{
+    content: `User would name a hypothetical ${subject} ${name}.`,
+    category: "preferences",
+  }];
+}
+
 export class PokeWebhookOrchestrator {
   async run(rawPayload: unknown): Promise<PokeWebhookIngestResult> {
     const payload = PokeWebhookPayloadSchema.parse(rawPayload);
@@ -133,7 +158,13 @@ export class PokeWebhookOrchestrator {
     let summary = payload.event ?? payload.type ?? "Poke webhook";
 
     if (facts.length === 0 && textProcessed.length > 0) {
-      facts = normalizeFacts(await inferFavoriteColorFact(textProcessed), validCategorySlugs);
+      facts = normalizeFacts(
+        [
+          ...(await inferFavoriteColorFact(textProcessed)),
+          ...inferHypotheticalNamingFact(textProcessed),
+        ],
+        validCategorySlugs
+      );
     }
 
     if (facts.length === 0 && textProcessed.length > 0) {
