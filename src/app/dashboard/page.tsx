@@ -114,7 +114,7 @@ export default function DashboardPage() {
   const connections = status?.connections;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-12">
 
       {/* ── Hero ── */}
       <section data-animate>
@@ -152,7 +152,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Connections */}
           {connections && Object.entries(connections).map(([key, conn], i) => (
-            <div key={key} className="maze-card p-6 relative overflow-hidden" data-animate={i + 1}>
+            <div key={key} className={`maze-card p-6 relative overflow-hidden${i === 0 ? " lg:col-span-2" : ""}`} data-animate={i + 1}>
               <div className="flex items-center justify-between mb-4">
                 <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${conn.connected ? "bg-lime/10" : "bg-muted"}`}>
                   {key === "anthropic" ? (
@@ -183,7 +183,7 @@ export default function DashboardPage() {
               </div>
               <ArrowUpRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
             </div>
-            <p className="text-3xl font-light tracking-tight">{stats?.memories ?? "—"}</p>
+            <p className="text-4xl font-extralight tracking-tight">{stats?.memories ?? "—"}</p>
             <p className="text-xs text-muted-foreground mt-1 font-medium">Active Memories</p>
           </Link>
 
@@ -199,7 +199,7 @@ export default function DashboardPage() {
                 </span>
               )}
             </div>
-            <p className="text-3xl font-light tracking-tight">{stats?.pending ?? "—"}</p>
+            <p className="text-4xl font-extralight tracking-tight">{stats?.pending ?? "—"}</p>
             <p className="text-xs text-muted-foreground mt-1 font-medium">Pending Review</p>
           </Link>
         </div>
@@ -218,7 +218,7 @@ export default function DashboardPage() {
             {sources.map((source, i) => {
               const displayType = SOURCE_TYPE_DISPLAY[source.type] || source.type;
               return (
-              <div key={source.id} className="maze-card p-5 flex items-center justify-between" data-animate={i + 1}>
+              <div key={source.id} className="maze-card maze-accent-bar p-5 flex items-center justify-between" data-animate={i + 1}>
                 <div className="flex items-center gap-3.5 min-w-0">
                   <SourceIcon type={source.type} />
                   <div className="min-w-0">
@@ -256,7 +256,7 @@ export default function DashboardPage() {
       <section>
         <p className="maze-eyebrow mb-6" data-animate>Import Conversations</p>
         <div className="maze-block" data-animate="1">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div className="flex items-start gap-3">
               <ServiceLogo type="chatgpt_export" size={18} className="shrink-0" />
               <div>
