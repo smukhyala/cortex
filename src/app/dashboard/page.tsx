@@ -225,7 +225,7 @@ export default function DashboardPage() {
                     <p className="text-sm font-medium tracking-tight truncate">{source.name}</p>
                     <div className="flex items-center gap-2.5 mt-1">
                       <span className="text-[11px] text-muted-foreground font-medium">
-                        {displayType}{source.accountLabel ? ` (${source.accountLabel})` : ""}
+                        {displayType}{source.type.endsWith("_export") ? " Export" : ""}{source.accountLabel ? ` · ${source.accountLabel}` : ""}
                       </span>
                       <span className="text-[11px] text-muted-foreground">{source._count.memories} memories</span>
                       {source.lastSyncAt && (
