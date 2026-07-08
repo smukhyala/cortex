@@ -38,7 +38,7 @@ export function createExtractedMemorySchema(
     temporality: TemporalitySchema,
     sensitive: z.boolean(),
     isCorrection: z.boolean(),
-    sourceDate: z.coerce.date().nullable().optional(),
+    sourceDate: z.string().nullable().optional(),
     project: z.string().optional(),
   });
 }
