@@ -9,8 +9,8 @@ import {
   Brain,
   Inbox,
   Settings,
-  Zap,
 } from "lucide-react";
+import { CortexLogo } from "@/components/features/service-logos";
 import {
   Sidebar,
   SidebarContent,
@@ -49,8 +49,8 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-5 pb-4">
         <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-lime">
-            <Zap className="h-4 w-4 text-lime-foreground" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-lime/10">
+            <CortexLogo size={18} />
           </div>
           <div>
             <h1 className="text-sm font-bold tracking-tight">Cortex</h1>

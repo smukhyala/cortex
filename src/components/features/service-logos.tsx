@@ -1,9 +1,11 @@
+import { PenLine } from "lucide-react";
+
 interface LogoProps {
   size?: number;
   className?: string;
 }
 
-// Anthropic/Claude logo — terracotta starburst/asterisk
+// Anthropic/Claude logo — official calligraphic mark
 export function ClaudeLogo({ size = 20, className = "" }: LogoProps) {
   return (
     <svg
@@ -15,14 +17,14 @@ export function ClaudeLogo({ size = 20, className = "" }: LogoProps) {
       aria-label="Claude"
     >
       <path
-        d="M12 2 L13.5 9.5 L20 6 L14.5 11 L22 12 L14.5 13 L20 18 L13.5 14.5 L12 22 L10.5 14.5 L4 18 L9.5 13 L2 12 L9.5 11 L4 6 L10.5 9.5 Z"
+        d="M16.878 10.414l-4.89 8.457a.497.497 0 01-.37.227.473.473 0 01-.408-.157.551.551 0 01-.124-.436l.749-4.838-3.47-.903a.533.533 0 01-.345-.283.538.538 0 01-.022-.45l4.89-8.456a.497.497 0 01.37-.228.473.473 0 01.408.158.551.551 0 01.124.436l-.749 4.837 3.47.903a.533.533 0 01.345.283.538.538 0 01.022.45z"
         fill="#D97757"
       />
     </svg>
   );
 }
 
-// OpenAI/ChatGPT logo — interlocking hexagonal flower
+// OpenAI/ChatGPT logo — official hexagonal flower
 export function ChatGPTLogo({ size = 20, className = "" }: LogoProps) {
   return (
     <svg
@@ -41,7 +43,7 @@ export function ChatGPTLogo({ size = 20, className = "" }: LogoProps) {
   );
 }
 
-// Poke logo — white palm tree on dusky blue
+// Poke logo — palm tree on blue
 export function PokeLogo({ size = 20, className = "" }: LogoProps) {
   return (
     <svg
@@ -53,11 +55,8 @@ export function PokeLogo({ size = 20, className = "" }: LogoProps) {
       aria-label="Poke"
     >
       <rect x="2" y="2" width="20" height="20" rx="6" fill="#4a6fa5" />
-      {/* Trunk */}
       <line x1="12" y1="10" x2="12" y2="19" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-      {/* Ground line */}
       <line x1="9" y1="19" x2="15" y2="19" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-      {/* Fronds — 6 arcs radiating from top of trunk */}
       <path d="M12 10 Q8 6 5 5" stroke="white" strokeWidth="1.2" strokeLinecap="round" fill="none" />
       <path d="M12 10 Q7 7 4 8" stroke="white" strokeWidth="1.2" strokeLinecap="round" fill="none" />
       <path d="M12 10 Q8 9 5 11" stroke="white" strokeWidth="1.2" strokeLinecap="round" fill="none" />
@@ -68,7 +67,7 @@ export function PokeLogo({ size = 20, className = "" }: LogoProps) {
   );
 }
 
-// Granola logo — notepad/document icon
+// Granola logo — notepad
 export function GranolaLogo({ size = 20, className = "" }: LogoProps) {
   return (
     <svg
@@ -87,6 +86,42 @@ export function GranolaLogo({ size = 20, className = "" }: LogoProps) {
   );
 }
 
+// Cortex logo — brain-circuit node motif in cactus green
+export function CortexLogo({ size = 20, className = "" }: LogoProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 32 32"
+      fill="none"
+      className={className}
+      aria-label="Cortex"
+    >
+      {/* Central node */}
+      <circle cx="16" cy="16" r="4" fill="#5B7553" />
+      {/* Outer nodes */}
+      <circle cx="16" cy="5" r="2.5" fill="#5B7553" />
+      <circle cx="25.5" cy="10.5" r="2.5" fill="#5B7553" />
+      <circle cx="25.5" cy="21.5" r="2.5" fill="#5B7553" />
+      <circle cx="16" cy="27" r="2.5" fill="#5B7553" />
+      <circle cx="6.5" cy="21.5" r="2.5" fill="#5B7553" />
+      <circle cx="6.5" cy="10.5" r="2.5" fill="#5B7553" />
+      {/* Connection lines */}
+      <line x1="16" y1="12" x2="16" y2="7.5" stroke="#5B7553" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="19.5" y1="13.5" x2="23.5" y2="11.5" stroke="#5B7553" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="19.5" y1="18.5" x2="23.5" y2="20.5" stroke="#5B7553" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="16" y1="20" x2="16" y2="24.5" stroke="#5B7553" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="12.5" y1="18.5" x2="8.5" y2="20.5" stroke="#5B7553" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="12.5" y1="13.5" x2="8.5" y2="11.5" stroke="#5B7553" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Manual entry icon
+function ManualLogo({ size = 20, className = "" }: LogoProps) {
+  return <PenLine size={size} className={`text-muted-foreground ${className}`} />;
+}
+
 // Mapping from source type strings to logo components + metadata
 const SERVICE_CONFIG: Record<string, {
   Logo: (props: LogoProps) => React.JSX.Element;
@@ -94,9 +129,11 @@ const SERVICE_CONFIG: Record<string, {
 }> = {
   chatgpt_export: { Logo: ChatGPTLogo, bg: "bg-emerald-50" },
   claude_code:    { Logo: ClaudeLogo,   bg: "bg-orange-50" },
+  claude_desktop: { Logo: ClaudeLogo,   bg: "bg-orange-50" },
   claude_export:  { Logo: ClaudeLogo,   bg: "bg-violet-50" },
   poke:           { Logo: PokeLogo,     bg: "bg-sky-50" },
   granola:        { Logo: GranolaLogo,  bg: "bg-amber-50" },
+  manual:         { Logo: ManualLogo,   bg: "bg-muted" },
 };
 
 // Unified component: renders the correct logo for a source type
