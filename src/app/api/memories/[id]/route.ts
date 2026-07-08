@@ -38,6 +38,7 @@ export async function PATCH(
       ...(body.category !== undefined && { category: body.category }),
       ...(nextStatus !== undefined && { status: nextStatus }),
       ...(body.manuallyStrong !== undefined && { manuallyStrong: Boolean(body.manuallyStrong) }),
+      ...(body.project !== undefined && { project: body.project || null }),
       ...(nextStatus === "archived" && {
         archivedAt: new Date(),
         archivedReason: body.reason || "Manual archive",
@@ -52,6 +53,22 @@ export async function PATCH(
       }),
     },
   });
+
+  // Handle folder assignments
+  if (Array.isArray(body.folderIds)) {
+    // Remove all existing folder assignments
+    await prisma.memoryFolder.deleteMany({ where: { memoryId: id } });
+    // Create new assignments
+    if (body.folderIds.length > 0) {
+      for (const folderId of body.folderIds) {
+        try {
+          await prisma.memoryFolder.create({ data: { memoryId: id, folderId } });
+        } catch {
+          // skip duplicates
+        }
+      }
+    }
+  }
 
   const action =
     nextStatus === "archived"

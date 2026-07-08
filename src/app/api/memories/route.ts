@@ -10,15 +10,27 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status") || "active";
   const search = searchParams.get("q");
 
+  const project = searchParams.get("project");
+  const folderId = searchParams.get("folderId");
+
   const where: Record<string, unknown> = { status };
   if (category) where.category = category;
   if (search) where.content = { contains: search };
+  if (project) where.project = project;
+  if (folderId) {
+    where.folders = { some: { folderId } };
+  }
 
   const memories = await prisma.memory.findMany({
     where,
     include: {
       source: { select: { name: true, type: true, config: true } },
-      conversation: { select: { title: true, externalId: true } },
+      conversation: { select: { title: true, externalId: true, sourceDate: true } },
+      folders: {
+        include: {
+          folder: { select: { id: true, name: true, slug: true, color: true } },
+        },
+      },
     },
   });
 
