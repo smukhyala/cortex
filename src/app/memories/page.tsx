@@ -2,9 +2,15 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Search, Download, Archive, Brain, Pencil, Sparkles, GitMerge, X, Zap, ChevronLeft, ChevronRight, Filter, Star, Trash2, RotateCcw } from "lucide-react";
+import { Search, Download, Archive, Brain, Pencil, Sparkles, GitMerge, X, Zap, ChevronLeft, ChevronRight, Filter, Star, Trash2, RotateCcw, FolderOpen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ServiceLogo } from "@/components/features/service-logos";
+
+interface MemoryFolder {
+  folder: { id: string; name: string; slug: string; color: string | null };
+}
+
 interface Memory {
   id: string;
   content: string;
@@ -19,9 +25,11 @@ interface Memory {
   manuallyStrong: boolean;
   strength: number;
   createdAt: string;
+  project: string | null;
   quality?: { isTechnical: boolean };
   source: { name: string; type: string; config: string };
-  conversation: { title: string; externalId: string } | null;
+  conversation: { title: string; externalId: string; sourceDate: string | null } | null;
+  folders: MemoryFolder[];
 }
 
 type DisplayMemory = Memory & {
@@ -113,9 +121,17 @@ export default function MemoriesPage() {
   const [page, setPage] = useState(1);
   const [bulkArchiving, setBulkArchiving] = useState(false);
   const [recentReferenceCutoff] = useState(() => Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const [folders, setFolders] = useState<Array<{ id: string; name: string; slug: string; color: string | null; _count: { memories: number } }>>([]);
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [folderPopoverMemoryId, setFolderPopoverMemoryId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/categories").then(r => r.json()).then(setCategories);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/folders").then(r => r.json()).then(setFolders).catch(() => {});
   }, []);
 
   const categoryColors: Record<string, string> = Object.fromEntries(categories.map(c => [c.slug, c.color]));
@@ -125,6 +141,7 @@ export default function MemoriesPage() {
     const params = new URLSearchParams({ status: scope === "archive" ? "archived" : "active" });
     if (selectedCategory) params.set("category", selectedCategory);
     if (search) params.set("q", search);
+    if (selectedFolder) params.set("folderId", selectedFolder);
     try {
       const res = await fetch(`/api/memories?${params}`);
       setMemories(await res.json());
@@ -133,7 +150,7 @@ export default function MemoriesPage() {
     } finally {
       setLoading(false);
     }
-  }, [scope, selectedCategory, search]);
+  }, [scope, selectedCategory, search, selectedFolder]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -380,6 +397,19 @@ export default function MemoriesPage() {
     const date = new Date(memory.lastReferencedAt);
     const dateStr = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
     return `${memory.manuallyStrong ? "Manually marked strong · " : ""}Referenced ${memory.referenceCount}x · Last seen ${dateStr} · Strength ${memory.strength.toFixed(2)}`;
+  }
+
+  function formatMemoryDate(memory: Memory): string {
+    const dateStr = memory.conversation?.sourceDate || memory.createdAt;
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return "today";
+    if (diffDays === 1) return "yesterday";
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   }
 
   const uniqueMemories = collapseDuplicateMemories(memories);
@@ -706,6 +736,50 @@ export default function MemoriesPage() {
               </button>
             );
           })}
+          {/* Folders */}
+          <div className="mt-6 pt-4 border-t border-border">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] uppercase tracking-widest text-muted-foreground/60 font-medium">Folders</span>
+            </div>
+            {folders.map((folder) => (
+              <button
+                key={folder.id}
+                className={`w-full text-left px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
+                  selectedFolder === folder.id ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+                onClick={() => {
+                  setSelectedFolder(selectedFolder === folder.id ? null : folder.id);
+                  setPage(1);
+                }}
+              >
+                {folder.name}
+                {folder._count.memories > 0 && <span className="float-right text-[11px] text-muted-foreground">{folder._count.memories}</span>}
+              </button>
+            ))}
+            <div className="mt-2 flex gap-1">
+              <Input
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key === "Enter" && newFolderName.trim()) {
+                    const res = await fetch("/api/folders", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ name: newFolderName.trim() }),
+                    });
+                    if (res.ok) {
+                      const folder = await res.json();
+                      setFolders((prev) => [...prev, folder]);
+                      setNewFolderName("");
+                      toast.success(`Folder "${folder.name}" created`);
+                    }
+                  }
+                }}
+                placeholder="New folder..."
+                className="h-8 text-[12px]"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Memory list */}
@@ -764,44 +838,44 @@ export default function MemoriesPage() {
                       {memory.content}
                     </p>
                     <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                      <ServiceLogo type={memory.source.type} size={8} showBackground={false} />
                       <span className={`maze-tag ${categoryColors[memory.category] || ""}`}>
                         {memory.category.replace("_", " ")}
                       </span>
+                      {memory.conversation?.title && (
+                        <span className="text-[11px] text-muted-foreground truncate max-w-[200px]" title={memory.conversation.title}>
+                          {memory.conversation.title}
+                        </span>
+                      )}
+                      {memory.project && (
+                        <button
+                          className="maze-tag bg-lime/10 text-lime hover:bg-lime/20 transition-colors cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSearch(memory.project!);
+                            setPage(1);
+                          }}
+                          title={`Filter by project: ${memory.project}`}
+                        >
+                          {memory.project}
+                        </button>
+                      )}
                       <span className="text-[11px] text-muted-foreground">
-                        via {memory.source.name}
-                        {memory.conversation?.title && (
-                          <> &middot; {memory.conversation.title.length > 40 ? memory.conversation.title.slice(0, 40) + "..." : memory.conversation.title}</>
-                        )}
-                        {(() => {
-                          try {
-                            const config = JSON.parse(memory.source.config || "{}");
-                            if (config.path) {
-                              const short = config.path.replace(/.*\/\.claude\//, "~/.claude/").replace(/\/Users\/\w+\//, "~/");
-                              return <> &middot; <span className="font-mono text-[10px]">{short}</span></>;
-                            }
-                          } catch { /* ignore */ }
-                          return null;
-                        })()}
+                        {formatMemoryDate(memory)}
                       </span>
                       {memory.sensitive && (
                         <span className="maze-tag bg-red-50 text-red-600">sensitive</span>
                       )}
                       {memory.quality?.isTechnical && (
-                        <span className="maze-tag bg-amber-100 text-amber-700">technical cleanup</span>
+                        <span className="maze-tag bg-amber-100 text-amber-700">technical</span>
                       )}
-                      {memory.manuallyStrong && (
-                        <span className="maze-tag bg-amber-100 text-amber-700">
-                          <Star className="h-3 w-3 fill-current" />
-                          manual strong
+                      {memory.folders.length > 0 && memory.folders.map((mf) => (
+                        <span key={mf.folder.id} className="maze-tag bg-muted text-muted-foreground text-[10px]">
+                          {mf.folder.name}
                         </span>
-                      )}
-                      {memory.duplicateCopies > 1 && (
-                        <span className="maze-tag bg-lime/10 text-lime">
-                          {memory.duplicateCopies} copies
-                        </span>
-                      )}
+                      ))}
                       <span className="text-[11px] text-muted-foreground">
-                        {memory.referenceCount} ref{memory.referenceCount === 1 ? "" : "s"} · strength {Math.round(memory.strength * 100)}%
+                        {memory.referenceCount} ref{memory.referenceCount === 1 ? "" : "s"}
                       </span>
                     </div>
                   </div>
@@ -830,6 +904,51 @@ export default function MemoriesPage() {
                             <GitMerge className="h-3.5 w-3.5 text-muted-foreground" />
                           </button>
                         )}
+                        <div className="relative">
+                          <button
+                            className="maze-btn maze-btn-ghost h-8 w-8 p-0 min-h-0 rounded-lg"
+                            onClick={() => setFolderPopoverMemoryId(folderPopoverMemoryId === memory.id ? null : memory.id)}
+                            title="Assign to folders"
+                          >
+                            <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                          </button>
+                          {folderPopoverMemoryId === memory.id && (
+                            <div className="absolute right-0 top-9 z-50 maze-card w-48 py-2 shadow-lg" onClick={(e) => e.stopPropagation()}>
+                              <p className="px-3 py-1 text-[11px] font-medium text-muted-foreground">Assign to folders</p>
+                              {folders.map((folder) => {
+                                const isAssigned = memory.folders.some((mf) => mf.folder.id === folder.id);
+                                return (
+                                  <label key={folder.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-muted/50 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={isAssigned}
+                                      onChange={async () => {
+                                        const currentFolderIds = memory.folders.map((mf) => mf.folder.id);
+                                        const newFolderIds = isAssigned
+                                          ? currentFolderIds.filter((id) => id !== folder.id)
+                                          : [...currentFolderIds, folder.id];
+                                        await fetch(`/api/memories/${memory.id}`, {
+                                          method: "PATCH",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ folderIds: newFolderIds }),
+                                        });
+                                        await fetchMemories();
+                                        // Refresh folder counts
+                                        fetch("/api/folders").then(r => r.json()).then(setFolders).catch(() => {});
+                                        setFolderPopoverMemoryId(null);
+                                      }}
+                                      className="rounded"
+                                    />
+                                    <span className="text-[12px]">{folder.name}</span>
+                                  </label>
+                                );
+                              })}
+                              {folders.length === 0 && (
+                                <p className="px-3 py-2 text-[11px] text-muted-foreground">No folders yet</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
                         <button className="maze-btn maze-btn-ghost h-8 w-8 p-0 min-h-0 rounded-lg" onClick={() => setEditDialog({ memory, content: memory.content })} title="Edit">
                           <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                         </button>
