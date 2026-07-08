@@ -104,19 +104,34 @@ async function readConversationsFromFile(filePath: string): Promise<ChatGPTConve
     const zip = new AdmZip(filePath);
     const entries = zip.getEntries();
 
-    // Look for conversations.json inside the ZIP
+    // Look for conversations.json or sharded conversations-NNN.json files inside the ZIP
     const convEntry = entries.find(
       (e) => e.entryName === "conversations.json" || e.entryName.endsWith("/conversations.json")
     );
 
-    if (!convEntry) {
-      throw new Error(
-        "No conversations.json found in ZIP. ChatGPT exports should contain a conversations.json file."
-      );
+    if (convEntry) {
+      const raw = convEntry.getData().toString("utf-8");
+      return JSON.parse(raw);
     }
 
-    const raw = convEntry.getData().toString("utf-8");
-    return JSON.parse(raw);
+    // Handle sharded format: conversations-000.json, conversations-001.json, etc.
+    const shardEntries = entries
+      .filter((e) => /conversations-\d+\.json$/.test(e.entryName))
+      .sort((a, b) => a.entryName.localeCompare(b.entryName));
+
+    if (shardEntries.length > 0) {
+      const allConversations: ChatGPTConversation[] = [];
+      for (const shard of shardEntries) {
+        const raw = shard.getData().toString("utf-8");
+        const parsed = JSON.parse(raw) as ChatGPTConversation[];
+        allConversations.push(...parsed);
+      }
+      return allConversations;
+    }
+
+    throw new Error(
+      "No conversations.json or conversations-NNN.json found in ZIP. ChatGPT exports should contain conversation files."
+    );
   }
 
   // Plain JSON file
