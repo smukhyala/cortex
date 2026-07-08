@@ -138,7 +138,7 @@ export default function HomePage() {
           </div>
 
           <div className="mt-12 grid w-full max-w-5xl gap-4 lg:grid-cols-[1.05fr_0.95fr] lg:text-left">
-            <div className="rounded-lg border border-white/14 bg-white/10 p-4 shadow-2xl backdrop-blur-md">
+            <div className="rounded-2xl border border-white/14 bg-white/10 p-4 shadow-2xl backdrop-blur-md">
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-medium text-white/70">
                   <Network className="h-4 w-4 text-lime" />
@@ -152,7 +152,7 @@ export default function HomePage() {
                   { name: "Cortex", detail: "reconcile", tone: "border-lime/50 bg-lime/15 text-lime" },
                   { name: "Poke", detail: "writeback", tone: "border-amber-300/50 bg-amber-300/15 text-amber-100" },
                 ].map((item) => (
-                  <div key={item.name} className={`rounded-lg border px-4 py-4 ${item.tone}`}>
+                  <div key={item.name} className={`rounded-2xl border px-4 py-4 ${item.tone}`}>
                     <p className="text-sm font-semibold">{item.name}</p>
                     <p className="mt-1 text-[11px] uppercase tracking-wide opacity-75">{item.detail}</p>
                   </div>
@@ -164,7 +164,7 @@ export default function HomePage() {
                   { text: "User no longer works at Astera.", width: "76%", tag: "updated" },
                   { text: "Logo path in packages/frontend/...", width: "24%", tag: "cleanup" },
                 ].map((memory) => (
-                  <div key={memory.text} className="rounded-lg border border-white/12 bg-black/18 p-3">
+                  <div key={memory.text} className="rounded-2xl border border-white/12 bg-black/18 p-3">
                     <div className="flex items-center justify-between gap-3">
                       <p className="min-w-0 truncate text-sm text-white/86">{memory.text}</p>
                       <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/60">{memory.tag}</span>
@@ -185,7 +185,7 @@ export default function HomePage() {
               ].map(({ label, value, body, icon: Icon }, index) => (
                 <div
                   key={label}
-                  className="landing-float rounded-lg border border-white/12 bg-white/10 px-5 py-4 shadow-2xl backdrop-blur-md"
+                  className="landing-float rounded-2xl border border-white/12 bg-white/10 px-5 py-4 shadow-2xl backdrop-blur-md"
                   style={{ animationDelay: `${index * 0.25}s` }}
                 >
                   <div className="flex items-center justify-between gap-4">
@@ -248,7 +248,7 @@ export default function HomePage() {
               { icon: Star, title: "Rank", body: "Scores by frequency, recency, objective facts, and manual strength." },
               { icon: Send, title: "Propagate", body: "Writes approved changes back to connected platforms." },
             ].map(({ icon: Icon, title, body }) => (
-              <div key={title} className="rounded-lg border border-border bg-background p-5">
+              <div key={title} className="rounded-2xl border border-border bg-background p-5">
                 <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-lime/10">
                   <Icon className="h-4 w-4 text-lime" />
                 </div>

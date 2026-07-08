@@ -143,7 +143,7 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="space-y-10 maze-fade-up">
+    <div className="space-y-12 maze-fade-up">
       <div className="flex items-center justify-between" data-animate>
         <div>
           <p className="maze-eyebrow mb-4">Review</p>
