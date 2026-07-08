@@ -34,14 +34,16 @@ export async function DELETE(
 ) {
   const { id } = await params;
 
-  // Detach all memories from this folder first
-  await prisma.memoryFolder.deleteMany({ where: { folderId: id } });
-  // Re-parent children to null
-  await prisma.folder.updateMany({
-    where: { parentId: id },
-    data: { parentId: null },
+  await prisma.$transaction(async (tx) => {
+    // Detach all memories from this folder first
+    await tx.memoryFolder.deleteMany({ where: { folderId: id } });
+    // Re-parent children to null
+    await tx.folder.updateMany({
+      where: { parentId: id },
+      data: { parentId: null },
+    });
+    await tx.folder.delete({ where: { id } });
   });
-  await prisma.folder.delete({ where: { id } });
 
   return NextResponse.json({ success: true });
 }

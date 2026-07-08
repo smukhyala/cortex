@@ -139,6 +139,8 @@ export async function runPipeline(input: {
     const shouldAutoApproveNewMemories = AUTO_APPROVE_NEW_MEMORY_SOURCES.has(input.sourceType);
     const commitResult = await commit({
       sourceId: input.sourceId,
+      sourceType: input.sourceType,
+      sourcePath: input.filePath,
       clean: dedup.output.clean,
       conflicts: dedup.output.conflicts,
       duplicateReferences: dedup.output.duplicateReferences,
