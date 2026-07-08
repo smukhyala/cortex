@@ -162,6 +162,8 @@ const CONNECTOR_CONFIG_FIELDS: Record<string, Array<{
 };
 
 export default function SettingsPage() {
+  type SettingsTab = "connections" | "policies" | "integrations" | "advanced";
+  const [activeTab, setActiveTab] = useState<SettingsTab>("connections");
   const [sources, setSources] = useState<Source[]>([]);
   const [status, setStatus] = useState<StatusData | null>(null);
   const [addDialog, setAddDialog] = useState(false);
@@ -635,13 +637,40 @@ export default function SettingsPage() {
   const connections = status?.connections;
 
   return (
-    <div className="space-y-8 max-w-4xl">
+    <div className="space-y-12 max-w-4xl">
       <div data-animate>
         <p className="maze-eyebrow mb-4">Configuration</p>
         <h1>Settings</h1>
         <p className="maze-body mt-3">Manage connections, sources, and preferences.</p>
       </div>
 
+      {/* ── Tab Bar ── */}
+      <div className="flex items-center gap-1 border-b border-border pb-0 mb-8">
+        {([
+          { key: "connections", label: "Connections" },
+          { key: "policies", label: "Policies" },
+          { key: "integrations", label: "Integrations" },
+          { key: "advanced", label: "Advanced" },
+        ] as const).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-4 py-2.5 text-[13px] font-semibold tracking-tight transition-colors relative ${
+              activeTab === tab.key
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}
+          >
+            {tab.label}
+            {activeTab === tab.key && (
+              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-lime rounded-full" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "connections" && (<>
       {/* ── Connections ── */}
       <section data-animate="1">
         <p className="maze-eyebrow mb-4">Connections</p>
@@ -681,7 +710,9 @@ export default function SettingsPage() {
           ))}
         </div>
       </section>
+      </>)}
 
+      {activeTab === "policies" && (<>
       {/* ── Exchange Policies ── */}
       <section data-animate="2">
         <div className="mb-4">
@@ -787,7 +818,9 @@ export default function SettingsPage() {
           </div>
         )}
       </section>
+      </>)}
 
+      {activeTab === "connections" && (<>
       {/* ── Detected Integrations ── */}
       <section data-animate="3">
         <div className="flex items-center justify-between mb-4">
@@ -910,7 +943,9 @@ export default function SettingsPage() {
           </div>
         )}
       </section>
+      </>)}
 
+      {activeTab === "integrations" && (<>
       {/* ── Connectors ── */}
       <section data-animate="3">
         <div className="flex items-center justify-between mb-4">
@@ -999,7 +1034,9 @@ export default function SettingsPage() {
           })}
         </div>
       </section>
+      </>)}
 
+      {activeTab === "connections" && (<>
       {/* ── Accounts ── */}
       <section data-animate="4">
         <p className="maze-eyebrow mb-4">Accounts</p>
@@ -1079,7 +1116,9 @@ export default function SettingsPage() {
           </div>
         </div>
       </section>
+      </>)}
 
+      {activeTab === "advanced" && (<>
       {/* ── Sources ── */}
       <section data-animate="5">
         <p className="maze-eyebrow mb-4">Sources</p>
@@ -1160,7 +1199,9 @@ export default function SettingsPage() {
           </div>
         </div>
       </section>
+      </>)}
 
+      {activeTab === "policies" && (<>
       {/* ── Preferences ── */}
       <section>
         <p className="maze-eyebrow mb-4">Preferences</p>
@@ -1181,7 +1222,9 @@ export default function SettingsPage() {
           </label>
         </div>
       </section>
+      </>)}
 
+      {activeTab === "integrations" && (<>
       {/* ── MCP Server ── */}
       <section>
         <p className="maze-eyebrow mb-4">MCP Server</p>
@@ -1256,7 +1299,9 @@ export default function SettingsPage() {
           </div>
         </div>
       </section>
+      </>)}
 
+      {activeTab === "advanced" && (<>
       {/* ── Danger ── */}
       <section>
         <p className="maze-eyebrow mb-4 text-red-500">Danger Zone</p>
@@ -1300,6 +1345,7 @@ export default function SettingsPage() {
           </div>
         </div>
       </section>
+      </>)}
 
       {/* ── Add Account Dialog ── */}
       {addAccountDialog && (
