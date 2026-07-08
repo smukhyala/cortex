@@ -39,6 +39,7 @@ export function createExtractedMemorySchema(
     sensitive: z.boolean(),
     isCorrection: z.boolean(),
     sourceDate: z.coerce.date().nullable().optional(),
+    project: z.string().optional(),
   });
 }
 

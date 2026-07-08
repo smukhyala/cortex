@@ -83,6 +83,10 @@ Classify each memory into exactly one of these categories:
 
 If the user says something like "Actually, I moved from New York to San Francisco" or "I used to prefer JavaScript but now I use TypeScript", set \`isCorrection: true\`. This signals that a previous memory may need updating.
 
+## Project Attribution
+
+If the conversation is clearly about a specific project, product, repository, or codebase that the user is working on, include its short name in the \`project\` field (e.g., "Cortex", "Oasis", "Cold Start Prompts"). Use the name the user uses to refer to it. If the memory is a general personal fact not tied to any project, omit the \`project\` field.
+
 ## Sensitivity
 
 Set \`sensitive: true\` for:

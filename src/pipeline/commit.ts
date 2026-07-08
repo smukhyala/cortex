@@ -43,6 +43,8 @@ export async function commit(params: {
   conversationMap: Map<string, string>; // externalId -> DB conversationId
   initialStatus?: "pending" | "active";
   reviewConflictTypes?: ReviewConflictType[];
+  sourceType?: string;
+  sourcePath?: string;
 }): Promise<CommitResult> {
   let memoriesCreated = 0;
   let reviewItemsCreated = 0;
@@ -54,6 +56,13 @@ export async function commit(params: {
   let referencesUpdated = 0;
   const initialStatus = params.initialStatus ?? "pending";
   const reviewConflictTypes = new Set(params.reviewConflictTypes ?? []);
+
+  // Auto-detect project from source path for Claude Code sources
+  let autoProject: string | null = null;
+  if (params.sourceType === "claude_code" && params.sourcePath) {
+    const { extractProjectFromPath } = await import("@/lib/project-detect");
+    autoProject = extractProjectFromPath(params.sourcePath);
+  }
 
   async function markReferenced(memoryId: string) {
     await prisma.memory.update({
@@ -100,6 +109,7 @@ export async function commit(params: {
         sensitive: mem.sensitive,
         sourceId: params.sourceId,
         ...(conversationId ? { conversationId } : {}),
+        ...((((mem as any).project) || autoProject) ? { project: (mem as any).project || autoProject } : {}),
         status,
         ...(status === "active" ? { approvedAt: new Date() } : {}),
       },
@@ -212,6 +222,7 @@ export async function commit(params: {
         sensitive: conflict.newMemory.sensitive,
         sourceId: params.sourceId,
         ...(conversationId ? { conversationId } : {}),
+        ...((((conflict.newMemory as any).project) || autoProject) ? { project: (conflict.newMemory as any).project || autoProject } : {}),
         status: "pending",
       },
     });

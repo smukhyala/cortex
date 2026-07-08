@@ -450,6 +450,28 @@ describe("commit", () => {
     );
   });
 
+  it("writes project field from extracted memory", async () => {
+    const mem = makeMemory({ content: "User uses Prisma" });
+    (mem as any).project = "Cortex";
+
+    await commit({
+      sourceId: "src-1",
+      clean: [mem],
+      conflicts: [],
+      conversationMap: new Map(),
+      initialStatus: "active",
+    });
+
+    expect(mockedPrisma.memory.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          content: "User uses Prisma",
+          project: "Cortex",
+        }),
+      })
+    );
+  });
+
   it("handles mixed clean and conflict items in a single call", async () => {
     const cleanMem = makeMemory({ content: "User plays guitar" });
     const refinement = makeConflict("refinement");
