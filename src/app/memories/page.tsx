@@ -445,8 +445,24 @@ export default function MemoriesPage() {
   const visibleTechnicalIds = pageItems.filter((m) => m.quality?.isTechnical).map((m) => m.id);
   const visibleDuplicateGroups = pageItems.filter((m) => m.duplicateCopies > 1);
 
+  function getCategoryAccentColor(category: string): string {
+    const colors: Record<string, string> = {
+      identity: '#3b82f6',
+      education_career: '#8b5cf6',
+      projects: '#10b981',
+      research: '#eab308',
+      preferences: '#f97316',
+      goals: '#ec4899',
+      relationships: '#6366f1',
+      writing_voice: '#06b6d4',
+      workflows: '#14b8a6',
+      temporary: '#6b7280',
+    };
+    return colors[category] || '#6b7280';
+  }
+
   return (
-    <div className="space-y-10">
+    <div className="space-y-12">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between" data-animate>
         <div>
           <p className="maze-eyebrow mb-4">Library</p>
@@ -708,7 +724,7 @@ export default function MemoriesPage() {
         <div className="shrink-0 space-y-0.5 lg:w-48">
           <button
             className={`w-full text-left px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
-              selectedCategory === null ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              selectedCategory === null ? "bg-lime/10 text-foreground border-l-2 border-lime" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
             }`}
             onClick={() => {
               setSelectedCategory(null);
@@ -724,7 +740,7 @@ export default function MemoriesPage() {
               <button
                 key={cat.slug}
                 className={`w-full text-left px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
-                  selectedCategory === cat.slug ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  selectedCategory === cat.slug ? "bg-lime/10 text-foreground border-l-2 border-lime" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 }`}
                 onClick={() => {
                   setSelectedCategory(cat.slug);
@@ -831,10 +847,12 @@ export default function MemoriesPage() {
                 className={`maze-card group relative overflow-hidden ${
                   memory.strength < 0.1 ? "opacity-60" : ""
                 } ${memory.strength > 0.7 ? "border-lime/30" : ""} ${memory.manuallyStrong ? "ring-1 ring-amber-300/70" : ""} ${memory.quality?.isTechnical ? "border-amber-300/70 bg-amber-50/30" : ""}`}
+                style={{ '--accent-color': getCategoryAccentColor(memory.category) } as React.CSSProperties}
               >
-                <div className="flex items-start justify-between p-5">
+                <div className="absolute left-0 top-0 bottom-0 w-1 rounded-r" style={{ background: getCategoryAccentColor(memory.category) }} />
+                <div className="flex items-start justify-between p-6 pl-5">
                   <div className="min-w-0 flex-1">
-                    <p className={`text-[14px] leading-relaxed ${memory.strength > 0.7 ? "font-medium" : ""}`}>
+                    <p className={`text-[15px] leading-relaxed ${memory.strength > 0.7 ? "font-medium" : ""}`}>
                       {memory.content}
                     </p>
                     <div className="flex items-center gap-2 mt-2.5 flex-wrap">
@@ -961,7 +979,7 @@ export default function MemoriesPage() {
                 </div>
                 {/* Heat bar */}
                 <div
-                  className={`absolute bottom-0 left-0 h-1 transition-all duration-500 ${strengthBarColor(memory.strength)}`}
+                  className="absolute bottom-0 left-0 h-1 transition-all duration-500 maze-strength-gradient"
                   style={{ width: `${(memory.strength * 100).toFixed(1)}%` }}
                   title={strengthTooltip(memory)}
                 />
