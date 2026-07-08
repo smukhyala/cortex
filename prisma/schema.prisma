@@ -64,12 +64,15 @@ model Memory {
   archivedAt     DateTime?
   archivedReason String?
 
+  project        String?
+
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   reviewItems    ReviewItem[]
   conflictsAsNew Conflict[] @relation("ConflictNew")
   conflictsAsOld Conflict[] @relation("ConflictExisting")
+  folders        MemoryFolder[]
 
   @@index([category])
   @@index([status])
@@ -159,4 +162,33 @@ model Category {
   isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Folder {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  parentId  String?
+  parent    Folder?   @relation("FolderTree", fields: [parentId], references: [id])
+  children  Folder[]  @relation("FolderTree")
+  icon      String?
+  color     String?
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  memories  MemoryFolder[]
+}
+
+model MemoryFolder {
+  id        String   @id @default(cuid())
+  memoryId  String
+  memory    Memory   @relation(fields: [memoryId], references: [id])
+  folderId  String
+  folder    Folder   @relation(fields: [folderId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([memoryId, folderId])
+  @@index([memoryId])
+  @@index([folderId])
 }
