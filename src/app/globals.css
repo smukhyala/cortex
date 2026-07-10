@@ -54,82 +54,82 @@
 }
 
 :root {
-  /* ── Maze.co neutral palette ── */
-  --background: #ffffff;
-  --foreground: #1a1a1a;
-  --card: #ffffff;
-  --card-foreground: #1a1a1a;
-  --popover: #ffffff;
-  --popover-foreground: #1a1a1a;
-  --primary: #1a1a1a;
-  --primary-foreground: #ffffff;
-  --secondary: #f7f7f7;
-  --secondary-foreground: #1a1a1a;
-  --muted: #f3f4f6;
-  --muted-foreground: #6b7280;
-  --accent: #f3f4f6;
-  --accent-foreground: #1a1a1a;
+  /* ── Warm cream palette ── */
+  --background: #FAF9F6;
+  --foreground: #2C2C2C;
+  --card: #FFFFFF;
+  --card-foreground: #2C2C2C;
+  --popover: #FFFFFF;
+  --popover-foreground: #2C2C2C;
+  --primary: #2C2C2C;
+  --primary-foreground: #FAF9F6;
+  --secondary: #F5F4F0;
+  --secondary-foreground: #2C2C2C;
+  --muted: #F0EFEB;
+  --muted-foreground: #7D7B76;
+  --accent: #F0EFEB;
+  --accent-foreground: #2C2C2C;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: #e5e7eb;
-  --input: #e5e7eb;
-  --ring: #a3a3a3;
+  --border: #E8E6E1;
+  --input: #E8E6E1;
+  --ring: #B5B3AE;
 
-  /* ── Maze.co lime accent ── */
-  --lime: oklch(0.7119 0.1668 121.63);
-  --lime-foreground: #1a1a1a;
-  --lime-muted: oklch(0.95 0.04 121);
+  /* ── Lime accent ── */
+  --lime: oklch(0.68 0.16 132);
+  --lime-foreground: #2C2C2C;
+  --lime-muted: oklch(0.94 0.04 132);
 
-  --chart-1: oklch(0.7119 0.1668 121.63);
-  --chart-2: #525252;
-  --chart-3: #404040;
-  --chart-4: #2e2e2e;
-  --chart-5: #1a1a1a;
-  --radius: 0.75rem;
+  --chart-1: oklch(0.68 0.16 132);
+  --chart-2: #6B6965;
+  --chart-3: #4A4845;
+  --chart-4: #3A3835;
+  --chart-5: #2C2C2C;
+  --radius: 0.625rem;
 
-  --sidebar: #fafafa;
-  --sidebar-foreground: #525252;
-  --sidebar-primary: #1a1a1a;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: oklch(0.95 0.04 121);
-  --sidebar-accent-foreground: #1a1a1a;
-  --sidebar-border: #e5e7eb;
-  --sidebar-ring: #a3a3a3;
+  --sidebar: #F5F4F0;
+  --sidebar-foreground: #6B6965;
+  --sidebar-primary: #2C2C2C;
+  --sidebar-primary-foreground: #FAF9F6;
+  --sidebar-accent: oklch(0.94 0.04 132);
+  --sidebar-accent-foreground: #2C2C2C;
+  --sidebar-border: #E8E6E1;
+  --sidebar-ring: #B5B3AE;
 
-  /* ── Elevation ── */
-  --shadow-nav: 0px 1px 0px rgba(0, 0, 0, 0.06);
-  --shadow-card: 0px 4px 20px rgba(0, 0, 0, 0.08);
-  --shadow-card-hover: 0px 8px 30px rgba(0, 0, 0, 0.12);
+  /* ── Elevation — warm shadows ── */
+  --shadow-nav: 0px 1px 0px rgba(44, 40, 35, 0.06);
+  --shadow-card: 0px 2px 12px rgba(44, 40, 35, 0.06);
+  --shadow-card-hover: 0px 4px 20px rgba(44, 40, 35, 0.10);
 
   /* ── Section backgrounds ── */
-  --surface-raised: #f9fafb;
+  --surface-raised: #F5F4F0;
 }
 
 .dark {
-  --background: #0a0a0a;
-  --foreground: #e5e5e5;
-  --card: #141414;
-  --card-foreground: #e5e5e5;
-  --popover: #141414;
-  --popover-foreground: #e5e5e5;
-  --primary: oklch(0.7119 0.1668 121.63);
-  --primary-foreground: #0a0a0a;
-  --secondary: #1c1c1c;
-  --secondary-foreground: #e5e5e5;
-  --muted: #1c1c1c;
-  --muted-foreground: #737373;
-  --accent: #1c1c1c;
-  --accent-foreground: #e5e5e5;
+  --background: #1A1918;
+  --foreground: #E8E6E1;
+  --card: #242321;
+  --card-foreground: #E8E6E1;
+  --popover: #242321;
+  --popover-foreground: #E8E6E1;
+  --primary: oklch(0.68 0.16 132);
+  --primary-foreground: #1A1918;
+  --secondary: #2A2927;
+  --secondary-foreground: #E8E6E1;
+  --muted: #2A2927;
+  --muted-foreground: #8A8884;
+  --accent: #2A2927;
+  --accent-foreground: #E8E6E1;
   --destructive: oklch(0.704 0.191 22.216);
   --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.12);
-  --ring: #525252;
-  --lime: oklch(0.7119 0.1668 121.63);
-  --lime-foreground: #0a0a0a;
-  --lime-muted: oklch(0.22 0.06 121);
-  --shadow-nav: 0px 1px 0px rgba(255, 255, 255, 0.04);
-  --shadow-card: 0px 1px 3px rgba(0, 0, 0, 0.2), 0px 6px 24px rgba(0, 0, 0, 0.3);
-  --shadow-card-hover: 0px 4px 12px rgba(0, 0, 0, 0.3), 0px 12px 40px rgba(0, 0, 0, 0.4);
-  --surface-raised: #111111;
+  --input: rgba(255, 255, 255, 0.10);
+  --ring: #5A5855;
+  --lime: oklch(0.68 0.16 132);
+  --lime-foreground: #1A1918;
+  --lime-muted: oklch(0.22 0.05 132);
+  --shadow-nav: 0px 1px 0px rgba(255, 255, 255, 0.03);
+  --shadow-card: 0px 1px 3px rgba(0, 0, 0, 0.2), 0px 4px 16px rgba(0, 0, 0, 0.25);
+  --shadow-card-hover: 0px 4px 12px rgba(0, 0, 0, 0.3), 0px 8px 30px rgba(0, 0, 0, 0.35);
+  --surface-raised: #1F1E1D;
 }
 
 /* ── Base ── */
@@ -152,21 +152,21 @@
   }
   h1 {
     font-size: clamp(1.5rem, 1.25rem + 1.2vw, 2rem);
-    letter-spacing: -0.03em;
-    line-height: 1.2;
-    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1.15;
+    font-weight: 400;
   }
   h2 {
     font-size: clamp(1.25rem, 1rem + 0.8vw, 1.625rem);
-    letter-spacing: -0.025em;
-    line-height: 1.25;
-    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    font-weight: 400;
   }
   h3 {
     font-size: clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
     letter-spacing: -0.02em;
     line-height: 1.3;
-    font-weight: 600;
+    font-weight: 500;
   }
 }
 
@@ -186,7 +186,6 @@
   }
   .maze-card:hover {
     box-shadow: var(--shadow-card-hover);
-    transform: translateY(-1px);
   }
   .maze-card-static {
     background: var(--card);
@@ -224,12 +223,10 @@
     white-space: nowrap;
   }
   .maze-btn:hover {
-    opacity: 0.88;
-    transform: translateY(-1px);
+    opacity: 0.85;
   }
   .maze-btn:active {
     opacity: 0.75;
-    transform: translateY(0);
   }
   .maze-btn-lime {
     background: var(--lime);
@@ -260,14 +257,14 @@
     top: 0;
     z-index: 50;
     height: 64px;
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(16px) saturate(180%);
-    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    background: rgba(250, 249, 246, 0.88);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
     box-shadow: var(--shadow-nav);
     border-bottom: 1px solid var(--border);
   }
   .dark .maze-nav {
-    background: rgba(10, 10, 10, 0.92);
+    background: rgba(26, 25, 24, 0.88);
   }
 
   /* ─── Eyebrow label ─── */
