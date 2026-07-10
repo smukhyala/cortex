@@ -125,7 +125,7 @@ export async function runPipeline(input: {
       const conv = conversations.find((c) => c.externalId === r.conversationId);
       return r.memories.map((mem) => ({
         ...mem,
-        sourceDate: conv?.sourceDate ?? null,
+        sourceDate: conv?.sourceDate?.toISOString() ?? null,
         conversationExternalId: conv?.externalId,
       }));
     });

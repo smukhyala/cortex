@@ -6,9 +6,9 @@ import type {
 } from "@/contracts/pipeline";
 import { prisma } from "@/lib/db";
 
-function formatDate(date: Date | null | undefined): string {
+function formatDate(date: Date | string | null | undefined): string {
   if (!date) return "date unknown";
-  return date.toISOString().split("T")[0];
+  return new Date(date).toISOString().split("T")[0];
 }
 
 const DEDUPE_STOPWORDS = new Set([
