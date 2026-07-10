@@ -1,6 +1,5 @@
 const MAX_REF = 20;
-const HALF_LIFE_DAYS = 90;
-const RECENCY_FLOOR = 0.25;
+const HALF_LIFE_DAYS = 60;
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 const OBJECTIVE_PROFILE_FLOOR = 0.55;
 const MANUAL_STRONG_FLOOR = 0.9;
@@ -53,8 +52,12 @@ export function computeMemoryStrength(
     ? Math.max(0, (nowTime - lastReferencedTime) / MS_PER_DAY)
     : Number.POSITIVE_INFINITY;
   const recencyScore = Math.exp(-daysSince / HALF_LIFE_DAYS);
-  const recencyMultiplier = RECENCY_FLOOR + (1 - RECENCY_FLOOR) * recencyScore;
-  const evidenceScore = frequencyScore * recencyMultiplier;
+
+  // Blend frequency and recency — recency weight increases when references are low.
+  // At 1 ref, recency is 70% of the score. At 10+ refs, recency drops to 30%.
+  const refRatio = clamp01(safeRefCount / 10);
+  const recencyWeight = 0.7 - 0.4 * refRatio; // 0.7 at 0 refs → 0.3 at 10+ refs
+  const evidenceScore = recencyWeight * recencyScore + (1 - recencyWeight) * frequencyScore;
 
   if (options.manuallyStrong) {
     return clamp01(Math.max(evidenceScore, MANUAL_STRONG_FLOOR));

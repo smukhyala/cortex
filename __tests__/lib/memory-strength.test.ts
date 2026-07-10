@@ -4,10 +4,9 @@ import { computeMemoryStrength, isObjectiveProfileMemory } from "@/lib/memory-st
 describe("computeMemoryStrength", () => {
   const now = new Date("2026-07-07T12:00:00.000Z");
 
-  it("keeps a single fresh reference below reinforced memories", () => {
+  it("gives a fresh single-ref memory a strong recency-driven score", () => {
     const strength = computeMemoryStrength(1, now, now);
-    expect(strength).toBeGreaterThan(0);
-    expect(strength).toBeLessThan(0.4);
+    expect(strength).toBeGreaterThan(0.6);
     expect(strength).toBeLessThanOrEqual(1.0);
   });
 
@@ -27,13 +26,18 @@ describe("computeMemoryStrength", () => {
     expect(strength).toBeGreaterThanOrEqual(0.45);
   });
 
-  it("does not promote technical memories into the strong range", () => {
-    const strength = computeMemoryStrength(1, now, now, {
+  it("scores technical memories the same as non-technical (recency-driven)", () => {
+    const technical = computeMemoryStrength(1, now, now, {
       content: "User's project stores result.json artifacts in `logs/webarena/<task_id>/`.",
       category: "projects",
       isTechnical: true,
     });
-    expect(strength).toBeLessThan(0.45);
+    const nonTechnical = computeMemoryStrength(1, now, now, {
+      content: "User is building a project called Cortex.",
+      category: "projects",
+    });
+    // Technical flag doesn't change strength (quality filtering is separate)
+    expect(technical).toBeCloseTo(nonTechnical, 2);
   });
 
   it("promotes memories that are manually marked strong", () => {
@@ -64,9 +68,18 @@ describe("computeMemoryStrength", () => {
     );
   });
 
-  it("lets reinforcement outweigh one-off recency", () => {
+  it("favors fresh memories over older reinforced ones", () => {
     const olderDate = new Date("2026-06-07T12:00:00.000Z");
-    expect(computeMemoryStrength(8, olderDate, now)).toBeGreaterThan(
+    // A fresh 1-ref memory beats an 8-ref memory from 30 days ago
+    expect(computeMemoryStrength(1, now, now)).toBeGreaterThan(
+      computeMemoryStrength(8, olderDate, now)
+    );
+  });
+
+  it("heavily reinforced recent memories still beat fresh single-ref", () => {
+    const recentDate = new Date("2026-07-05T12:00:00.000Z");
+    // 15 refs from 2 days ago should beat 1 ref from today
+    expect(computeMemoryStrength(15, recentDate, now)).toBeGreaterThan(
       computeMemoryStrength(1, now, now)
     );
   });
