@@ -121,6 +121,7 @@ export default function MemoriesPage() {
   const [page, setPage] = useState(1);
   const [bulkArchiving, setBulkArchiving] = useState(false);
   const [recentReferenceCutoff] = useState(() => Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const [totalMemories, setTotalMemories] = useState(0);
   const [folders, setFolders] = useState<Array<{ id: string; name: string; slug: string; color: string | null; _count: { memories: number } }>>([]);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState("");
@@ -142,15 +143,24 @@ export default function MemoriesPage() {
     if (selectedCategory) params.set("category", selectedCategory);
     if (search) params.set("q", search);
     if (selectedFolder) params.set("folderId", selectedFolder);
+    params.set("page", String(page));
+    params.set("limit", String(pageSize));
     try {
       const res = await fetch(`/api/memories?${params}`);
-      setMemories(await res.json());
+      const data = await res.json();
+      if (data && Array.isArray(data.items)) {
+        setMemories(data.items);
+        setTotalMemories(data.total);
+      } else if (Array.isArray(data)) {
+        setMemories(data);
+        setTotalMemories(data.length);
+      }
     } catch {
       toast.error("Failed to load memories");
     } finally {
       setLoading(false);
     }
-  }, [scope, selectedCategory, search, selectedFolder]);
+  }, [scope, selectedCategory, search, selectedFolder, page, pageSize]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -438,10 +448,10 @@ export default function MemoriesPage() {
       if (sort === "category") return a.category.localeCompare(b.category) || b.strength - a.strength;
       return b.strength - a.strength || b.referenceCount - a.referenceCount;
     });
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(totalMemories / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pageStart = (currentPage - 1) * pageSize;
-  const pageItems = filtered.slice(pageStart, pageStart + pageSize);
+  const pageItems = filtered;
   const visibleTechnicalIds = pageItems.filter((m) => m.quality?.isTechnical).map((m) => m.id);
   const visibleDuplicateGroups = pageItems.filter((m) => m.duplicateCopies > 1);
 
@@ -468,7 +478,7 @@ export default function MemoriesPage() {
           <p className="maze-eyebrow mb-4">Library</p>
           <h1>{isArchiveScope ? "Archive" : "Memories"}</h1>
           <p className="maze-body mt-3">
-            {uniqueMemories.length} {isArchiveScope ? "archived" : "unique"} memor{uniqueMemories.length !== 1 ? "ies" : "y"}
+            {totalMemories} {isArchiveScope ? "archived" : "unique"} memor{totalMemories !== 1 ? "ies" : "y"}
             {!isArchiveScope && hiddenDuplicateCount > 0 && (
               <> · {hiddenDuplicateCount} duplicate cop{hiddenDuplicateCount === 1 ? "y" : "ies"} hidden</>
             )}
@@ -802,7 +812,7 @@ export default function MemoriesPage() {
         <div className="flex-1 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-[13px] text-muted-foreground">
-              Showing {filtered.length === 0 ? 0 : pageStart + 1}-{Math.min(pageStart + pageSize, filtered.length)} of {filtered.length}
+              Showing {totalMemories === 0 ? 0 : pageStart + 1}-{Math.min(pageStart + pageSize, totalMemories)} of {totalMemories}
             </p>
             <div className="flex items-center gap-2">
               <button

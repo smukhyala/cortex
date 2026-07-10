@@ -21,18 +21,28 @@ export async function GET(req: NextRequest) {
     where.folders = { some: { folderId } };
   }
 
-  const memories = await prisma.memory.findMany({
-    where,
-    include: {
-      source: { select: { name: true, type: true, config: true } },
-      conversation: { select: { title: true, externalId: true, sourceDate: true } },
-      folders: {
-        include: {
-          folder: { select: { id: true, name: true, slug: true, color: true } },
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+  const limit = Math.min(200, Math.max(1, parseInt(searchParams.get("limit") || "48", 10)));
+  const skip = (page - 1) * limit;
+
+  const [memories, total] = await Promise.all([
+    prisma.memory.findMany({
+      where,
+      include: {
+        source: { select: { name: true, type: true, config: true } },
+        conversation: { select: { title: true, externalId: true, sourceDate: true } },
+        folders: {
+          include: {
+            folder: { select: { id: true, name: true, slug: true, color: true } },
+          },
         },
       },
-    },
-  });
+      orderBy: [{ lastReferencedAt: "desc" }],
+      skip,
+      take: limit,
+    }),
+    prisma.memory.count({ where }),
+  ]);
 
   const now = new Date();
   const memoriesWithStrength = memories
@@ -62,7 +72,7 @@ export async function GET(req: NextRequest) {
       b.lastReferencedAt.getTime() - a.lastReferencedAt.getTime()
     );
 
-  return NextResponse.json(memoriesWithStrength);
+  return NextResponse.json({ items: memoriesWithStrength, total, page, limit });
 }
 
 export async function POST(req: NextRequest) {
