@@ -851,145 +851,93 @@ export default function MemoriesPage() {
               </p>
             </div>
           ) : (
-            pageItems.map((memory) => {
-              const catColor = getCategoryAccentColor(memory.category);
-              const faded = memory.strength < 0.15;
-
-              return (
+            pageItems.map((memory) => (
               <div
                 key={memory.id}
-                className={`group relative border border-border rounded-2xl bg-card transition-all duration-200 hover:border-border/80 hover:shadow-sm ${faded ? "opacity-50" : ""} ${memory.manuallyStrong ? "ring-1 ring-amber-300/50" : ""}`}
+                className={`group maze-card px-5 py-4 ${memory.strength < 0.15 ? "opacity-50" : ""} ${memory.manuallyStrong ? "ring-1 ring-amber-300/40" : ""}`}
               >
-                {/* Category accent */}
-                <div className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full" style={{ background: catColor, opacity: 0.7 + memory.strength * 0.3 }} />
-
-                {/* Actions — appear on hover */}
-                <div className="absolute top-3 right-3 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-card/90 backdrop-blur-sm rounded-lg p-0.5 shadow-sm border border-border/50">
-                  {isArchiveScope ? (
-                    <>
-                      <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted transition-colors" onClick={() => handleRestore(memory.id)} title="Restore">
-                        <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
-                      </button>
-                      <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted transition-colors" onClick={() => handleDeleteFromArchive(memory.id)} title="Delete">
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        className={`h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted transition-colors ${memory.manuallyStrong ? "text-amber-500" : "text-muted-foreground"}`}
-                        onClick={() => handleToggleStrong(memory)}
-                        title={memory.manuallyStrong ? "Unpin" : "Pin"}
-                      >
-                        <Star className={`h-3.5 w-3.5 ${memory.manuallyStrong ? "fill-current" : ""}`} />
-                      </button>
-                      <div className="relative">
-                        <button
-                          className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted transition-colors text-muted-foreground"
-                          onClick={() => setFolderPopoverMemoryId(folderPopoverMemoryId === memory.id ? null : memory.id)}
-                          title="Folders"
-                        >
-                          <FolderOpen className="h-3.5 w-3.5" />
-                        </button>
-                        {folderPopoverMemoryId === memory.id && (
-                          <div className="absolute right-0 top-8 z-50 bg-card border border-border rounded-xl w-48 py-1.5 shadow-lg" onClick={(e) => e.stopPropagation()}>
-                            {folders.map((folder) => {
-                              const isAssigned = memory.folders.some((mf) => mf.folder.id === folder.id);
-                              return (
-                                <label key={folder.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-muted/50 cursor-pointer text-[12px]">
-                                  <input
-                                    type="checkbox"
-                                    checked={isAssigned}
-                                    onChange={async () => {
-                                      const currentFolderIds = memory.folders.map((mf) => mf.folder.id);
-                                      const newFolderIds = isAssigned
-                                        ? currentFolderIds.filter((id) => id !== folder.id)
-                                        : [...currentFolderIds, folder.id];
-                                      await fetch(`/api/memories/${memory.id}`, {
-                                        method: "PATCH",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ folderIds: newFolderIds }),
-                                      });
-                                      await fetchMemories();
-                                      fetch("/api/folders").then(r => r.json()).then(setFolders).catch(() => {});
-                                      setFolderPopoverMemoryId(null);
-                                    }}
-                                    className="rounded"
-                                  />
-                                  {folder.name}
-                                </label>
-                              );
-                            })}
-                            {folders.length === 0 && (
-                              <p className="px-3 py-2 text-[11px] text-muted-foreground">No folders yet</p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted transition-colors text-muted-foreground" onClick={() => setEditDialog({ memory, content: memory.content })} title="Edit">
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted transition-colors text-muted-foreground" onClick={() => handleArchive(memory.id)} title="Archive">
-                        <Archive className="h-3.5 w-3.5" />
-                      </button>
-                    </>
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="px-5 pl-4 py-4">
-                  <p className={`text-[14.5px] leading-[1.65] pr-8 ${memory.strength > 0.6 ? "text-foreground" : "text-foreground/80"}`}>
-                    {memory.content}
-                  </p>
-
-                  {/* Metadata line */}
-                  <div className="flex items-center gap-1.5 mt-2.5 text-[11.5px] text-muted-foreground">
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="h-[6px] w-[6px] rounded-full shrink-0" style={{ background: catColor }} />
-                      <span style={{ color: catColor }} className="font-medium">{memory.category.replace(/_/g, " ")}</span>
+                {/* Top row: category pill + source + date + actions */}
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-2 text-[11px] min-w-0">
+                    <span className={`maze-tag ${categoryColors[memory.category] || "bg-muted text-muted-foreground"}`}>
+                      {memory.category.replace(/_/g, " ")}
                     </span>
-                    <span className="text-border">·</span>
-                    <ServiceLogo type={memory.source.type} size={7} showBackground={false} />
-                    <span>{memory.source.name.replace(" (Exchange)", "").replace(" Export", "")}</span>
-                    <span className="text-border">·</span>
-                    <span>{formatMemoryDate(memory)}</span>
+                    <span className="inline-flex items-center gap-1.5 text-muted-foreground shrink-0">
+                      <ServiceLogo type={memory.source.type} size={7} showBackground={false} />
+                      {memory.source.name.replace(" (Exchange)", "").replace(" Export", "")}
+                    </span>
+                    <span className="text-muted-foreground/40 shrink-0">·</span>
+                    <span className="text-muted-foreground shrink-0">{formatMemoryDate(memory)}</span>
                     {memory.project && (
                       <>
-                        <span className="text-border">·</span>
+                        <span className="text-muted-foreground/40 shrink-0">·</span>
                         <button
-                          className="font-medium text-foreground/60 hover:text-foreground transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSearch(memory.project!);
-                            setPage(1);
-                          }}
+                          className="text-foreground/50 hover:text-foreground font-medium transition-colors truncate"
+                          onClick={(e) => { e.stopPropagation(); setSearch(memory.project!); setPage(1); }}
                         >
                           {memory.project}
                         </button>
                       </>
                     )}
-                    {memory.sensitive && (
+                  </div>
+                  <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {isArchiveScope ? (
                       <>
-                        <span className="text-border">·</span>
-                        <span className="text-red-500 font-medium">sensitive</span>
+                        <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted transition-colors" onClick={() => handleRestore(memory.id)} title="Restore"><RotateCcw className="h-3.5 w-3.5 text-muted-foreground" /></button>
+                        <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted transition-colors" onClick={() => handleDeleteFromArchive(memory.id)} title="Delete"><Trash2 className="h-3.5 w-3.5 text-muted-foreground" /></button>
+                      </>
+                    ) : (
+                      <>
+                        <button className={`h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted transition-colors ${memory.manuallyStrong ? "text-amber-500" : "text-muted-foreground"}`} onClick={() => handleToggleStrong(memory)} title={memory.manuallyStrong ? "Unpin" : "Pin"}>
+                          <Star className={`h-3.5 w-3.5 ${memory.manuallyStrong ? "fill-current" : ""}`} />
+                        </button>
+                        <div className="relative">
+                          <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted transition-colors text-muted-foreground" onClick={() => setFolderPopoverMemoryId(folderPopoverMemoryId === memory.id ? null : memory.id)} title="Folders">
+                            <FolderOpen className="h-3.5 w-3.5" />
+                          </button>
+                          {folderPopoverMemoryId === memory.id && (
+                            <div className="absolute right-0 top-8 z-50 bg-card border border-border rounded-xl w-48 py-1.5 shadow-lg" onClick={(e) => e.stopPropagation()}>
+                              {folders.map((folder) => {
+                                const isAssigned = memory.folders.some((mf) => mf.folder.id === folder.id);
+                                return (
+                                  <label key={folder.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-muted/50 cursor-pointer text-[12px]">
+                                    <input type="checkbox" checked={isAssigned} onChange={async () => {
+                                      const currentFolderIds = memory.folders.map((mf) => mf.folder.id);
+                                      const newFolderIds = isAssigned ? currentFolderIds.filter((id) => id !== folder.id) : [...currentFolderIds, folder.id];
+                                      await fetch(`/api/memories/${memory.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folderIds: newFolderIds }) });
+                                      await fetchMemories();
+                                      fetch("/api/folders").then(r => r.json()).then(setFolders).catch(() => {});
+                                      setFolderPopoverMemoryId(null);
+                                    }} className="rounded" />
+                                    {folder.name}
+                                  </label>
+                                );
+                              })}
+                              {folders.length === 0 && <p className="px-3 py-2 text-[11px] text-muted-foreground">No folders yet</p>}
+                            </div>
+                          )}
+                        </div>
+                        <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted transition-colors text-muted-foreground" onClick={() => setEditDialog({ memory, content: memory.content })} title="Edit"><Pencil className="h-3.5 w-3.5" /></button>
+                        <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted transition-colors text-muted-foreground" onClick={() => handleArchive(memory.id)} title="Archive"><Archive className="h-3.5 w-3.5" /></button>
                       </>
                     )}
                   </div>
-
-                  {/* Folder tags — only if present */}
-                  {memory.folders.length > 0 && (
-                    <div className="flex items-center gap-1.5 mt-1.5">
-                      {memory.folders.map((mf) => (
-                        <span key={mf.folder.id} className="text-[10px] text-muted-foreground/70 bg-muted/60 px-2 py-0.5 rounded-full">
-                          {mf.folder.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
+
+                {/* Content */}
+                <p className="text-[14px] leading-[1.6]">{memory.content}</p>
+
+                {/* Folders + sensitive */}
+                {(memory.folders.length > 0 || memory.sensitive) && (
+                  <div className="flex items-center gap-1.5 mt-2">
+                    {memory.folders.map((mf) => (
+                      <span key={mf.folder.id} className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{mf.folder.name}</span>
+                    ))}
+                    {memory.sensitive && <span className="text-[10px] text-red-500 bg-red-50 px-2 py-0.5 rounded-full font-medium">sensitive</span>}
+                  </div>
+                )}
               </div>
-              );
-            })
+            ))
           )}
         </div>
       </div>
