@@ -1,0 +1,158 @@
+- generic [ref=f4e1]:
+  - navigation [ref=f4e2]:
+    - generic [ref=f4e3]:
+      - link "Cortex Cortex" [ref=f4e4] [cursor=pointer]:
+        - /url: /
+        - img "Cortex" [ref=f4e6]
+        - generic [ref=f4e7]: Cortex
+      - generic [ref=f4e8]:
+        - link "Home" [ref=f4e9] [cursor=pointer]:
+          - /url: /
+        - link "Dashboard" [ref=f4e10] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Memories" [ref=f4e11] [cursor=pointer]:
+          - /url: /memories
+        - link "Review" [ref=f4e12] [cursor=pointer]:
+          - /url: /review
+        - link "Settings" [ref=f4e13] [cursor=pointer]:
+          - /url: /settings
+      - generic [ref=f4e16]: Active
+  - main [ref=f4e17]:
+    - generic [ref=f4e18]:
+      - generic [ref=f4e19]:
+        - generic [ref=f4e20]:
+          - paragraph [ref=f4e21]: Library
+          - heading "Memories" [level=1] [ref=f4e22]
+          - paragraph [ref=f4e23]: 3 unique memories
+        - generic [ref=f4e24]:
+          - generic [ref=f4e25]:
+            - button "Active" [ref=f4e26]:
+              - img [ref=f4e27]
+              - text: Active
+            - button "Archive" [ref=f4e35]:
+              - img [ref=f4e36]
+              - text: Archive
+          - button "Sync Poke" [ref=f4e39] [cursor=pointer]:
+            - img [ref=f4e40]
+            - text: Sync Poke
+          - button "Deduplicate" [ref=f4e42] [cursor=pointer]:
+            - img [ref=f4e43]
+            - text: Deduplicate
+          - button "Export" [ref=f4e47] [cursor=pointer]:
+            - img [ref=f4e48]
+            - text: Export
+      - generic [ref=f4e51]:
+        - generic [ref=f4e52]:
+          - img [ref=f4e53]
+          - generic [ref=f4e56]: Quick Statement
+        - paragraph [ref=f4e57]: Type a fact about yourself. It will be saved and propagated to all connected platforms.
+        - generic [ref=f4e58]:
+          - textbox "e.g., \"My age is 25\" or \"I now work at Acme Corp\"" [ref=f4e59]
+          - button "Apply" [disabled] [ref=f4e60]
+      - generic [ref=f4e61]:
+        - generic [ref=f4e62]:
+          - generic [ref=f4e63]:
+            - img [ref=f4e64]
+            - textbox "Search memories..." [ref=f4e67]
+          - combobox "Sort memories" [ref=f4e68]:
+            - option "Strongest first" [selected]
+            - option "Recently referenced"
+            - option "Most referenced"
+            - option "Category"
+          - combobox "Memories per page" [ref=f4e69]:
+            - option "12 per page"
+            - option "24 per page" [selected]
+            - option "48 per page"
+        - generic [ref=f4e70]:
+          - button "All 3" [ref=f4e180]:
+            - text: All
+            - generic [ref=f4e72]: "3"
+          - button "Strong 0" [ref=f4e73]:
+            - text: Strong
+            - generic [ref=f4e74]: "0"
+          - button "Recent 3" [ref=f4e181]:
+            - text: Recent
+            - generic [ref=f4e76]: "3"
+          - button "Cleanup 0" [ref=f4e77]:
+            - img [ref=f4e78]
+            - text: Cleanup
+            - generic [ref=f4e80]: "0"
+      - generic [ref=f4e81]:
+        - generic [ref=f4e82]:
+          - button "All 3" [ref=f4e182]:
+            - text: All
+            - generic [ref=f4e84]: "3"
+          - generic [ref=f4e85]:
+            - generic [ref=f4e87]: Folders
+            - button "Pets & Animals" [ref=f4e280]
+            - textbox "New folder..." [active] [ref=f4e89]
+        - generic [ref=f4e90]:
+          - generic [ref=f4e91]:
+            - paragraph [ref=f4e92]: Showing 1-3 of 3
+            - generic [ref=f4e93]:
+              - button "Previous page" [disabled] [ref=f4e94] [cursor=pointer]:
+                - img [ref=f4e95]
+              - generic [ref=f4e97]: Page 1 / 1
+              - button "Next page" [disabled] [ref=f4e98] [cursor=pointer]:
+                - img [ref=f4e99]
+          - generic [ref=f4e183]:
+            - generic [ref=f4e185]:
+              - generic [ref=f4e186]:
+                - paragraph [ref=f4e187]: User's favorite board game is Settlers of Catan
+                - generic [ref=f4e188]:
+                  - img [ref=f4e189]
+                  - generic [ref=f4e191]: identity
+                  - generic [ref=f4e192]: today
+                  - generic [ref=f4e193]: 1 ref
+              - generic [ref=f4e194]:
+                - button "Mark as strong" [ref=f4e195] [cursor=pointer]:
+                  - img [ref=f4e196]
+                - button "Assign to folders" [ref=f4e199] [cursor=pointer]:
+                  - img [ref=f4e200]
+                - button "Edit" [ref=f4e202] [cursor=pointer]:
+                  - img [ref=f4e203]
+                - button "Archive" [ref=f4e206] [cursor=pointer]:
+                  - img [ref=f4e207]
+            - generic "Referenced 1x · Last seen Jul 8 · Strength 0.23" [ref=f4e210]
+          - generic [ref=f4e211]:
+            - generic [ref=f4e213]:
+              - generic [ref=f4e214]:
+                - paragraph [ref=f4e215]: User is learning to play the ukulele
+                - generic [ref=f4e216]:
+                  - img "Claude" [ref=f4e217]
+                  - generic [ref=f4e219]: preferences
+                  - generic [ref=f4e220]: today
+                  - generic [ref=f4e221]: 1 ref
+              - generic [ref=f4e222]:
+                - button "Mark as strong" [ref=f4e223] [cursor=pointer]:
+                  - img [ref=f4e224]
+                - button "Assign to folders" [ref=f4e227] [cursor=pointer]:
+                  - img [ref=f4e228]
+                - button "Edit" [ref=f4e230] [cursor=pointer]:
+                  - img [ref=f4e231]
+                - button "Archive" [ref=f4e234] [cursor=pointer]:
+                  - img [ref=f4e235]
+            - generic "Referenced 1x · Last seen Jul 8 · Strength 0.23" [ref=f4e238]
+          - generic [ref=f4e239]:
+            - generic [ref=f4e241]:
+              - generic [ref=f4e242]:
+                - paragraph [ref=f4e243]: The name of my fifth dog was Alfie
+                - generic [ref=f4e244]:
+                  - img "Poke" [ref=f4e245]
+                  - generic [ref=f4e253]: relationships
+                  - generic [ref=f4e254]: today
+                  - generic [ref=f4e255]: 1 ref
+              - generic [ref=f4e256]:
+                - button "Mark as strong" [ref=f4e257] [cursor=pointer]:
+                  - img [ref=f4e258]
+                - button "Assign to folders" [ref=f4e261] [cursor=pointer]:
+                  - img [ref=f4e262]
+                - button "Edit" [ref=f4e264] [cursor=pointer]:
+                  - img [ref=f4e265]
+                - button "Archive" [ref=f4e268] [cursor=pointer]:
+                  - img [ref=f4e269]
+            - generic "Referenced 1x · Last seen Jul 8 · Strength 0.23" [ref=f4e272]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f4e110] [cursor=pointer]:
+    - img [ref=f4e111]
+  - alert [ref=f4e179]

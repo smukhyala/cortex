@@ -1,0 +1,74 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - link "Cortex Cortex" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - img "Cortex" [ref=e6]
+        - generic [ref=e7]: Cortex
+      - generic [ref=e8]:
+        - link "Home" [ref=e9] [cursor=pointer]:
+          - /url: /
+        - link "Dashboard" [ref=e10] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Memories" [ref=e11] [cursor=pointer]:
+          - /url: /memories
+        - link "Review" [ref=e12] [cursor=pointer]:
+          - /url: /review
+        - link "Settings" [ref=e13] [cursor=pointer]:
+          - /url: /settings
+      - generic [ref=e16]: Active
+  - main [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e20]:
+        - generic [ref=e23]: System Active
+        - generic [ref=e24]:
+          - paragraph [ref=e25]: Cortex
+          - heading "Everything your AI tools know about you." [level=1] [ref=e26]:
+            - text: Everything your AI
+            - text: tools know about you.
+          - paragraph [ref=e27]: Cortex extracts durable facts from your conversations, deduplicates them, and syncs your personal context across ChatGPT, Claude, and Poke.
+      - generic [ref=e28]:
+        - paragraph [ref=e29]: Overview
+        - generic [ref=e30]:
+          - link "— Active Memories" [ref=e31] [cursor=pointer]:
+            - /url: /memories
+            - generic [ref=e32]:
+              - img [ref=e34]
+              - img [ref=e42]
+            - paragraph [ref=e45]: —
+            - paragraph [ref=e46]: Active Memories
+          - link "— Pending Review" [ref=e47] [cursor=pointer]:
+            - /url: "#"
+            - img [ref=e50]
+            - paragraph [ref=e53]: —
+            - paragraph [ref=e54]: Pending Review
+      - generic [ref=e55]:
+        - paragraph [ref=e56]: Import Conversations
+        - generic [ref=e57]:
+          - generic [ref=e58]:
+            - generic [ref=e59]:
+              - img "ChatGPT" [ref=e61]
+              - generic [ref=e63]:
+                - paragraph [ref=e64]: ChatGPT
+                - paragraph [ref=e65]: Export from Settings → Data Controls → Export data. Upload the .zip below.
+            - generic [ref=e66]:
+              - img "Claude" [ref=e68]
+              - generic [ref=e70]:
+                - paragraph [ref=e71]: Claude.ai
+                - paragraph [ref=e72]: Export your conversations from Claude.ai settings. Upload the .json file below.
+            - generic [ref=e73]:
+              - img "Poke" [ref=e75]
+              - generic [ref=e83]:
+                - paragraph [ref=e84]: Poke
+                - paragraph [ref=e85]:
+                  - text: Your API key pushes memories
+                  - emphasis [ref=e86]: to
+                  - text: Poke. Export from the Memories page.
+          - generic [ref=e88]:
+            - img [ref=e90]
+            - paragraph [ref=e93]: Drop a conversation export
+            - paragraph [ref=e94]: ChatGPT (.zip or .json) · Claude (.json)
+            - button "Browse Files" [ref=e95] [cursor=pointer]:
+              - img [ref=e96]
+              - text: Browse Files
+  - region "Notifications alt+T"

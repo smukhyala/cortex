@@ -1,0 +1,426 @@
+- generic [active] [ref=f4e1]:
+  - navigation [ref=f4e2]:
+    - generic [ref=f4e3]:
+      - link "Cortex Cortex" [ref=f4e4] [cursor=pointer]:
+        - /url: /
+        - img "Cortex" [ref=f4e6]
+        - generic [ref=f4e7]: Cortex
+      - generic [ref=f4e8]:
+        - link "Home" [ref=f4e9] [cursor=pointer]:
+          - /url: /
+        - link "Dashboard" [ref=f4e10] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Memories" [ref=f4e11] [cursor=pointer]:
+          - /url: /memories
+        - link "Review 2611" [ref=f4e26] [cursor=pointer]:
+          - /url: /review
+          - text: Review
+          - generic [ref=f4e27]: "2611"
+        - link "Settings" [ref=f4e13] [cursor=pointer]:
+          - /url: /settings
+      - generic [ref=f4e16]: Active
+  - main [ref=f4e17]:
+    - generic [ref=f4e18]:
+      - generic [ref=f4e19]:
+        - generic [ref=f4e28]:
+          - paragraph [ref=f4e29]: Review
+          - heading "Review Queue" [level=1] [ref=f4e30]
+          - paragraph [ref=f4e31]: 2611 items pending review
+        - button "Approve All (2611)" [ref=f4e32] [cursor=pointer]:
+          - img [ref=f4e33]
+          - text: Approve All (2611)
+      - generic [ref=f4e35]:
+        - generic [ref=f4e38]:
+          - generic [ref=f4e39]:
+            - generic [ref=f4e40]:
+              - generic [ref=f4e41]: relationships
+              - generic [ref=f4e42]: 90%
+              - generic [ref=f4e44]: via ChatGPT Export
+            - paragraph [ref=f4e45]: User has a partner/collaborator who also worked on the LinkedIn hackathon with them
+          - generic [ref=f4e46]:
+            - button "Approve" [ref=f4e47] [cursor=pointer]:
+              - img [ref=f4e48]
+            - button "Reject" [ref=f4e50] [cursor=pointer]:
+              - img [ref=f4e51]
+            - button "Edit" [ref=f4e54] [cursor=pointer]:
+              - img [ref=f4e55]
+            - button "Details" [ref=f4e58] [cursor=pointer]:
+              - img [ref=f4e59]
+        - generic [ref=f4e63]:
+          - generic [ref=f4e64]:
+            - generic [ref=f4e65]:
+              - generic [ref=f4e66]: goals
+              - generic [ref=f4e67]: 90%
+              - generic [ref=f4e69]: via ChatGPT Export
+            - paragraph [ref=f4e70]: User is interested in internship opportunities in both computer science and management-related roles
+          - generic [ref=f4e71]:
+            - button "Approve" [ref=f4e72] [cursor=pointer]:
+              - img [ref=f4e73]
+            - button "Reject" [ref=f4e75] [cursor=pointer]:
+              - img [ref=f4e76]
+            - button "Edit" [ref=f4e79] [cursor=pointer]:
+              - img [ref=f4e80]
+            - button "Details" [ref=f4e83] [cursor=pointer]:
+              - img [ref=f4e84]
+        - generic [ref=f4e88]:
+          - generic [ref=f4e89]:
+            - generic [ref=f4e90]:
+              - generic [ref=f4e91]: education career
+              - generic [ref=f4e92]: 85%
+              - generic [ref=f4e94]: via ChatGPT Export
+            - paragraph [ref=f4e95]: User developed leadership and management skills through running a hackathon
+          - generic [ref=f4e96]:
+            - button "Approve" [ref=f4e97] [cursor=pointer]:
+              - img [ref=f4e98]
+            - button "Reject" [ref=f4e100] [cursor=pointer]:
+              - img [ref=f4e101]
+            - button "Edit" [ref=f4e104] [cursor=pointer]:
+              - img [ref=f4e105]
+            - button "Details" [ref=f4e108] [cursor=pointer]:
+              - img [ref=f4e109]
+        - generic [ref=f4e113]:
+          - generic [ref=f4e114]:
+            - generic [ref=f4e115]:
+              - generic [ref=f4e116]: projects
+              - generic [ref=f4e117]: 90%
+              - generic [ref=f4e119]: via ChatGPT Export
+            - paragraph [ref=f4e120]: User organized and ran a hackathon in partnership with LinkedIn
+          - generic [ref=f4e121]:
+            - button "Approve" [ref=f4e122] [cursor=pointer]:
+              - img [ref=f4e123]
+            - button "Reject" [ref=f4e125] [cursor=pointer]:
+              - img [ref=f4e126]
+            - button "Edit" [ref=f4e129] [cursor=pointer]:
+              - img [ref=f4e130]
+            - button "Details" [ref=f4e133] [cursor=pointer]:
+              - img [ref=f4e134]
+        - generic [ref=f4e138]:
+          - generic [ref=f4e139]:
+            - generic [ref=f4e140]:
+              - generic [ref=f4e141]: education career
+              - generic [ref=f4e142]: 80%
+              - generic [ref=f4e144]: via ChatGPT Export
+            - paragraph [ref=f4e145]: User is considering universities in the United States for their education
+          - generic [ref=f4e146]:
+            - button "Approve" [ref=f4e147] [cursor=pointer]:
+              - img [ref=f4e148]
+            - button "Reject" [ref=f4e150] [cursor=pointer]:
+              - img [ref=f4e151]
+            - button "Edit" [ref=f4e154] [cursor=pointer]:
+              - img [ref=f4e155]
+            - button "Details" [ref=f4e158] [cursor=pointer]:
+              - img [ref=f4e159]
+        - generic [ref=f4e163]:
+          - generic [ref=f4e164]:
+            - generic [ref=f4e165]:
+              - generic [ref=f4e166]: projects
+              - generic [ref=f4e167]: 85%
+              - generic [ref=f4e169]: via ChatGPT Export
+            - paragraph [ref=f4e170]: User works on a Python Toga GUI application called PerfectDay
+          - generic [ref=f4e171]:
+            - button "Approve" [ref=f4e172] [cursor=pointer]:
+              - img [ref=f4e173]
+            - button "Reject" [ref=f4e175] [cursor=pointer]:
+              - img [ref=f4e176]
+            - button "Edit" [ref=f4e179] [cursor=pointer]:
+              - img [ref=f4e180]
+            - button "Details" [ref=f4e183] [cursor=pointer]:
+              - img [ref=f4e184]
+        - generic [ref=f4e188]:
+          - generic [ref=f4e189]:
+            - generic [ref=f4e190]:
+              - generic [ref=f4e191]: projects
+              - generic [ref=f4e192]: 75%
+              - generic [ref=f4e194]: via ChatGPT Export
+            - paragraph [ref=f4e195]: User's Chrome extension interacts with Wikipedia tabs to analyze and reformat page text
+          - generic [ref=f4e196]:
+            - button "Approve" [ref=f4e197] [cursor=pointer]:
+              - img [ref=f4e198]
+            - button "Reject" [ref=f4e200] [cursor=pointer]:
+              - img [ref=f4e201]
+            - button "Edit" [ref=f4e204] [cursor=pointer]:
+              - img [ref=f4e205]
+            - button "Details" [ref=f4e208] [cursor=pointer]:
+              - img [ref=f4e209]
+        - generic [ref=f4e213]:
+          - generic [ref=f4e214]:
+            - generic [ref=f4e215]:
+              - generic [ref=f4e216]: workflows
+              - generic [ref=f4e217]: 85%
+              - generic [ref=f4e219]: via ChatGPT Export
+            - paragraph [ref=f4e220]: User uses Visual Studio Code as a code editor
+          - generic [ref=f4e221]:
+            - button "Approve" [ref=f4e222] [cursor=pointer]:
+              - img [ref=f4e223]
+            - button "Reject" [ref=f4e225] [cursor=pointer]:
+              - img [ref=f4e226]
+            - button "Edit" [ref=f4e229] [cursor=pointer]:
+              - img [ref=f4e230]
+            - button "Details" [ref=f4e233] [cursor=pointer]:
+              - img [ref=f4e234]
+        - generic [ref=f4e238]:
+          - generic [ref=f4e239]:
+            - generic [ref=f4e240]:
+              - generic [ref=f4e241]: workflows
+              - generic [ref=f4e242]: 90%
+              - generic [ref=f4e244]: via ChatGPT Export
+            - paragraph [ref=f4e245]: User works with TradingView's Pine Script editor for building trading indicators
+          - generic [ref=f4e246]:
+            - button "Approve" [ref=f4e247] [cursor=pointer]:
+              - img [ref=f4e248]
+            - button "Reject" [ref=f4e250] [cursor=pointer]:
+              - img [ref=f4e251]
+            - button "Edit" [ref=f4e254] [cursor=pointer]:
+              - img [ref=f4e255]
+            - button "Details" [ref=f4e258] [cursor=pointer]:
+              - img [ref=f4e259]
+        - generic [ref=f4e263]:
+          - generic [ref=f4e264]:
+            - generic [ref=f4e265]:
+              - generic [ref=f4e266]: identity
+              - generic [ref=f4e267]: 80%
+              - generic [ref=f4e269]: via ChatGPT Export
+            - paragraph [ref=f4e270]: User's TradingView username appears to be 'smukhyala'
+          - generic [ref=f4e271]:
+            - button "Approve" [ref=f4e272] [cursor=pointer]:
+              - img [ref=f4e273]
+            - button "Reject" [ref=f4e275] [cursor=pointer]:
+              - img [ref=f4e276]
+            - button "Edit" [ref=f4e279] [cursor=pointer]:
+              - img [ref=f4e280]
+            - button "Details" [ref=f4e283] [cursor=pointer]:
+              - img [ref=f4e284]
+        - generic [ref=f4e288]:
+          - generic [ref=f4e289]:
+            - generic [ref=f4e290]:
+              - generic [ref=f4e291]: projects
+              - generic [ref=f4e292]: 95%
+              - generic [ref=f4e294]: via ChatGPT Export
+            - paragraph [ref=f4e295]: User is developing a Pine Script indicator called 'Taylor Price Error Estimate' for TradingView
+          - generic [ref=f4e296]:
+            - button "Approve" [ref=f4e297] [cursor=pointer]:
+              - img [ref=f4e298]
+            - button "Reject" [ref=f4e300] [cursor=pointer]:
+              - img [ref=f4e301]
+            - button "Edit" [ref=f4e304] [cursor=pointer]:
+              - img [ref=f4e305]
+            - button "Details" [ref=f4e308] [cursor=pointer]:
+              - img [ref=f4e309]
+        - generic [ref=f4e313]:
+          - generic [ref=f4e314]:
+            - generic [ref=f4e315]:
+              - generic [ref=f4e316]: projects
+              - generic [ref=f4e317]: 90%
+              - generic [ref=f4e319]: via ChatGPT Export
+            - paragraph [ref=f4e320]: User is running their app on an iPhone simulator
+          - generic [ref=f4e321]:
+            - button "Approve" [ref=f4e322] [cursor=pointer]:
+              - img [ref=f4e323]
+            - button "Reject" [ref=f4e325] [cursor=pointer]:
+              - img [ref=f4e326]
+            - button "Edit" [ref=f4e329] [cursor=pointer]:
+              - img [ref=f4e330]
+            - button "Details" [ref=f4e333] [cursor=pointer]:
+              - img [ref=f4e334]
+        - generic [ref=f4e338]:
+          - generic [ref=f4e339]:
+            - generic [ref=f4e340]:
+              - generic [ref=f4e341]: projects
+              - generic [ref=f4e342]: 85%
+              - generic [ref=f4e344]: via ChatGPT Export
+            - paragraph [ref=f4e345]: User's app has a data structure called mainData containing an 'activities' key with activity objects that have a 'title' field
+          - generic [ref=f4e346]:
+            - button "Approve" [ref=f4e347] [cursor=pointer]:
+              - img [ref=f4e348]
+            - button "Reject" [ref=f4e350] [cursor=pointer]:
+              - img [ref=f4e351]
+            - button "Edit" [ref=f4e354] [cursor=pointer]:
+              - img [ref=f4e355]
+            - button "Details" [ref=f4e358] [cursor=pointer]:
+              - img [ref=f4e359]
+        - generic [ref=f4e363]:
+          - generic [ref=f4e364]:
+            - generic [ref=f4e365]:
+              - generic [ref=f4e366]: projects
+              - generic [ref=f4e367]: 80%
+              - generic [ref=f4e369]: via ChatGPT Export
+            - paragraph [ref=f4e370]: User is developing a mobile app (likely iOS, tested on iPhone simulator) using the Toga UI framework in Python
+          - generic [ref=f4e371]:
+            - button "Approve" [ref=f4e372] [cursor=pointer]:
+              - img [ref=f4e373]
+            - button "Reject" [ref=f4e375] [cursor=pointer]:
+              - img [ref=f4e376]
+            - button "Edit" [ref=f4e379] [cursor=pointer]:
+              - img [ref=f4e380]
+            - button "Details" [ref=f4e383] [cursor=pointer]:
+              - img [ref=f4e384]
+        - generic [ref=f4e388]:
+          - generic [ref=f4e389]:
+            - generic [ref=f4e390]:
+              - generic [ref=f4e391]: projects
+              - generic [ref=f4e392]: 95%
+              - generic [ref=f4e394]: via ChatGPT Export
+            - paragraph [ref=f4e395]: User is building a browser extension project called ReadBetter
+          - generic [ref=f4e396]:
+            - button "Approve" [ref=f4e397] [cursor=pointer]:
+              - img [ref=f4e398]
+            - button "Reject" [ref=f4e400] [cursor=pointer]:
+              - img [ref=f4e401]
+            - button "Edit" [ref=f4e404] [cursor=pointer]:
+              - img [ref=f4e405]
+            - button "Details" [ref=f4e408] [cursor=pointer]:
+              - img [ref=f4e409]
+        - generic [ref=f4e413]:
+          - generic [ref=f4e414]:
+            - generic [ref=f4e415]:
+              - generic [ref=f4e416]: projects
+              - generic [ref=f4e417]: 85%
+              - generic [ref=f4e419]: via ChatGPT Export
+            - paragraph [ref=f4e420]: User is writing a college application essay about their leadership experience in computer science
+          - generic [ref=f4e421]:
+            - button "Approve" [ref=f4e422] [cursor=pointer]:
+              - img [ref=f4e423]
+            - button "Reject" [ref=f4e425] [cursor=pointer]:
+              - img [ref=f4e426]
+            - button "Edit" [ref=f4e429] [cursor=pointer]:
+              - img [ref=f4e430]
+            - button "Details" [ref=f4e433] [cursor=pointer]:
+              - img [ref=f4e434]
+        - generic [ref=f4e438]:
+          - generic [ref=f4e439]:
+            - generic [ref=f4e440]:
+              - generic [ref=f4e441]: goals
+              - generic [ref=f4e442]: 95%
+              - generic [ref=f4e444]: via ChatGPT Export
+            - paragraph [ref=f4e445]: User is passionate about expanding computer science access and education for underrepresented students
+          - generic [ref=f4e446]:
+            - button "Approve" [ref=f4e447] [cursor=pointer]:
+              - img [ref=f4e448]
+            - button "Reject" [ref=f4e450] [cursor=pointer]:
+              - img [ref=f4e451]
+            - button "Edit" [ref=f4e454] [cursor=pointer]:
+              - img [ref=f4e455]
+            - button "Details" [ref=f4e458] [cursor=pointer]:
+              - img [ref=f4e459]
+        - generic [ref=f4e463]:
+          - generic [ref=f4e464]:
+            - generic [ref=f4e465]:
+              - generic [ref=f4e466]: projects
+              - generic [ref=f4e467]: 95%
+              - generic [ref=f4e469]: via ChatGPT Export
+            - paragraph [ref=f4e470]: User raised $50,000 in learning resources and opportunities for computer science education through their community initiatives
+          - generic [ref=f4e471]:
+            - button "Approve" [ref=f4e472] [cursor=pointer]:
+              - img [ref=f4e473]
+            - button "Reject" [ref=f4e475] [cursor=pointer]:
+              - img [ref=f4e476]
+            - button "Edit" [ref=f4e479] [cursor=pointer]:
+              - img [ref=f4e480]
+            - button "Details" [ref=f4e483] [cursor=pointer]:
+              - img [ref=f4e484]
+        - generic [ref=f4e488]:
+          - generic [ref=f4e489]:
+            - generic [ref=f4e490]:
+              - generic [ref=f4e491]: projects
+              - generic [ref=f4e492]: 95%
+              - generic [ref=f4e494]: via ChatGPT Export
+            - paragraph [ref=f4e495]: User organized MateoHacks, the first public hackathon at San Mateo High School, which drew 120 students from across the nation
+          - generic [ref=f4e496]:
+            - button "Approve" [ref=f4e497] [cursor=pointer]:
+              - img [ref=f4e498]
+            - button "Reject" [ref=f4e500] [cursor=pointer]:
+              - img [ref=f4e501]
+            - button "Edit" [ref=f4e504] [cursor=pointer]:
+              - img [ref=f4e505]
+            - button "Details" [ref=f4e508] [cursor=pointer]:
+              - img [ref=f4e509]
+        - generic [ref=f4e513]:
+          - generic [ref=f4e514]:
+            - generic [ref=f4e515]:
+              - generic [ref=f4e516]: preferences
+              - generic [ref=f4e517]: 60%
+              - generic [ref=f4e519]: via ChatGPT Export
+            - paragraph [ref=f4e520]: User writes code in Java
+          - generic [ref=f4e521]:
+            - button "Approve" [ref=f4e522] [cursor=pointer]:
+              - img [ref=f4e523]
+            - button "Reject" [ref=f4e525] [cursor=pointer]:
+              - img [ref=f4e526]
+            - button "Edit" [ref=f4e529] [cursor=pointer]:
+              - img [ref=f4e530]
+            - button "Details" [ref=f4e533] [cursor=pointer]:
+              - img [ref=f4e534]
+        - generic [ref=f4e538]:
+          - generic [ref=f4e539]:
+            - generic [ref=f4e540]:
+              - generic [ref=f4e541]: identity
+              - generic [ref=f4e542]: 95%
+              - generic [ref=f4e544]: via ChatGPT Export
+            - paragraph [ref=f4e545]: User views their bicultural identity as a source of strength and open-mindedness rather than a source of conflict
+          - generic [ref=f4e546]:
+            - button "Approve" [ref=f4e547] [cursor=pointer]:
+              - img [ref=f4e548]
+            - button "Reject" [ref=f4e550] [cursor=pointer]:
+              - img [ref=f4e551]
+            - button "Edit" [ref=f4e554] [cursor=pointer]:
+              - img [ref=f4e555]
+            - button "Details" [ref=f4e558] [cursor=pointer]:
+              - img [ref=f4e559]
+        - generic [ref=f4e563]:
+          - generic [ref=f4e564]:
+            - generic [ref=f4e565]:
+              - generic [ref=f4e566]: relationships
+              - generic [ref=f4e567]: 93%
+              - generic [ref=f4e569]: via ChatGPT Export
+            - paragraph [ref=f4e570]: User has grandparents from both their Indian and Polish sides, and has had the opportunity to spend time with both sets of grandparents together
+          - generic [ref=f4e571]:
+            - button "Approve" [ref=f4e572] [cursor=pointer]:
+              - img [ref=f4e573]
+            - button "Reject" [ref=f4e575] [cursor=pointer]:
+              - img [ref=f4e576]
+            - button "Edit" [ref=f4e579] [cursor=pointer]:
+              - img [ref=f4e580]
+            - button "Details" [ref=f4e583] [cursor=pointer]:
+              - img [ref=f4e584]
+        - generic [ref=f4e588]:
+          - generic [ref=f4e589]:
+            - generic [ref=f4e590]:
+              - generic [ref=f4e591]: preferences
+              - generic [ref=f4e592]: 92%
+              - generic [ref=f4e594]: via ChatGPT Export
+            - paragraph [ref=f4e595]: User finds playing music for family especially meaningful and joyful
+          - generic [ref=f4e596]:
+            - button "Approve" [ref=f4e597] [cursor=pointer]:
+              - img [ref=f4e598]
+            - button "Reject" [ref=f4e600] [cursor=pointer]:
+              - img [ref=f4e601]
+            - button "Edit" [ref=f4e604] [cursor=pointer]:
+              - img [ref=f4e605]
+            - button "Details" [ref=f4e608] [cursor=pointer]:
+              - img [ref=f4e609]
+        - generic [ref=f4e613]:
+          - generic [ref=f4e614]:
+            - generic [ref=f4e615]:
+              - generic [ref=f4e616]: identity
+              - generic [ref=f4e617]: 90%
+              - generic [ref=f4e619]: via ChatGPT Export
+            - paragraph [ref=f4e620]: User does not speak Telugu or Polish fluently
+          - generic [ref=f4e621]:
+            - button "Approve" [ref=f4e622] [cursor=pointer]:
+              - img [ref=f4e623]
+            - button "Reject" [ref=f4e625] [cursor=pointer]:
+              - img [ref=f4e626]
+            - button "Edit" [ref=f4e629] [cursor=pointer]:
+              - img [ref=f4e630]
+            - button "Details" [ref=f4e633] [cursor=pointer]:
+              - img [ref=f4e634]
+      - generic [ref=f4e636]:
+        - button [disabled] [ref=f4e637] [cursor=pointer]:
+          - img [ref=f4e638]
+        - generic [ref=f4e640]: 1-24 of 2611
+        - button [ref=f4e641] [cursor=pointer]:
+          - img [ref=f4e642]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f4e649] [cursor=pointer]:
+    - img [ref=f4e650]
+  - alert [ref=f4e653]
