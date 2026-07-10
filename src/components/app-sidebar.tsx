@@ -37,10 +37,10 @@ export function AppSidebar() {
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
-    fetch("/api/review")
+    fetch("/api/review?limit=1")
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setPendingCount(data.length);
+        if (data && typeof data.total === "number") setPendingCount(data.total);
       })
       .catch(() => {});
   }, [pathname]);

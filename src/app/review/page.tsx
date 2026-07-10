@@ -55,18 +55,21 @@ export default function ReviewPage() {
   const [editDialog, setEditDialog] = useState<{ item: ReviewItem; content: string } | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const pageSize = 24;
 
   const fetchItems = useCallback(async () => {
     try {
-      const res = await fetch("/api/review");
-      setItems(await res.json());
+      const res = await fetch(`/api/review?page=${page}&limit=${pageSize}`);
+      const data = await res.json();
+      setItems(data.items);
+      setTotal(data.total);
     } catch {
       toast.error("Failed to load review items");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -124,7 +127,7 @@ export default function ReviewPage() {
     );
   }
 
-  if (items.length === 0) {
+  if (items.length === 0 && total === 0) {
     return (
       <div className="space-y-8 maze-fade-up">
         <div>
@@ -151,13 +154,13 @@ export default function ReviewPage() {
           <p className="maze-eyebrow mb-4">Review</p>
           <h1>Review Queue</h1>
           <p className="maze-body mt-3">
-            {items.length} item{items.length !== 1 ? "s" : ""} pending review
+            {total} item{total !== 1 ? "s" : ""} pending review
           </p>
         </div>
         {newMemoryItems.length > 0 && (
           <button onClick={handleBatchApprove} className="maze-btn maze-btn-lime">
             <Check className="h-3.5 w-3.5" />
-            Approve All ({newMemoryItems.length})
+            Approve All ({total})
           </button>
         )}
       </div>
@@ -172,49 +175,50 @@ export default function ReviewPage() {
         </section>
       )}
 
-      {/* New memories (paginated) */}
-      {newMemoryItems.length > 0 && (() => {
-        const totalPages = Math.max(1, Math.ceil(newMemoryItems.length / pageSize));
-        const currentPage = Math.min(page, totalPages);
-        const start = (currentPage - 1) * pageSize;
-        const pageItems = newMemoryItems.slice(start, start + pageSize);
+      {/* New memories */}
+      {newMemoryItems.length > 0 && (
+        <section className="space-y-3" data-animate="2">
+          {conflictItems.length > 0 && (
+            <p className="maze-eyebrow">New Memories</p>
+          )}
+          {newMemoryItems.map((item) => (
+            <MemoryReviewCard
+              key={item.id}
+              item={item}
+              expanded={expandedId === item.id}
+              onToggle={() => setExpandedId(expandedId === item.id ? null : item.id)}
+              onApprove={() => handleAction(item.id, "approve")}
+              onReject={() => handleAction(item.id, "reject")}
+              onEdit={() => setEditDialog({ item, content: item.memory.content })}
+            />
+          ))}
+        </section>
+      )}
 
+      {/* Pagination */}
+      {total > pageSize && (() => {
+        const totalPages = Math.ceil(total / pageSize);
+        const start = (page - 1) * pageSize;
         return (
-          <section className="space-y-3" data-animate="2">
-            <div className="flex items-center justify-between">
-              <p className="maze-eyebrow">New Memories ({newMemoryItems.length})</p>
-              <div className="flex items-center gap-2">
-                <button
-                  className="maze-btn maze-btn-outline h-8 w-8 min-h-0 p-0"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage <= 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <span className="text-[12px] text-muted-foreground">
-                  {start + 1}-{Math.min(start + pageSize, newMemoryItems.length)} of {newMemoryItems.length}
-                </span>
-                <button
-                  className="maze-btn maze-btn-outline h-8 w-8 min-h-0 p-0"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage >= totalPages}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            {pageItems.map((item) => (
-              <MemoryReviewCard
-                key={item.id}
-                item={item}
-                expanded={expandedId === item.id}
-                onToggle={() => setExpandedId(expandedId === item.id ? null : item.id)}
-                onApprove={() => handleAction(item.id, "approve")}
-                onReject={() => handleAction(item.id, "reject")}
-                onEdit={() => setEditDialog({ item, content: item.memory.content })}
-              />
-            ))}
-          </section>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              className="maze-btn maze-btn-outline h-8 w-8 min-h-0 p-0"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-[12px] text-muted-foreground">
+              {start + 1}-{Math.min(start + pageSize, total)} of {total}
+            </span>
+            <button
+              className="maze-btn maze-btn-outline h-8 w-8 min-h-0 p-0"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         );
       })()}
 

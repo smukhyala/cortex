@@ -2,21 +2,31 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { notifyMemoryChange } from "@/services/memory-change";
 
-export async function GET() {
-  const items = await prisma.reviewItem.findMany({
-    where: { status: "pending" },
-    include: {
-      memory: {
-        include: { source: { select: { name: true, type: true } } },
-      },
-      conflict: {
-        include: { existingMemory: true },
-      },
-    },
-    orderBy: [{ type: "desc" }, { createdAt: "desc" }], // conflicts first
-  });
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "24", 10)));
+  const skip = (page - 1) * limit;
 
-  return NextResponse.json(items);
+  const [items, total] = await Promise.all([
+    prisma.reviewItem.findMany({
+      where: { status: "pending" },
+      include: {
+        memory: {
+          include: { source: { select: { name: true, type: true } } },
+        },
+        conflict: {
+          include: { existingMemory: true },
+        },
+      },
+      orderBy: [{ type: "desc" }, { createdAt: "desc" }], // conflicts first
+      skip,
+      take: limit,
+    }),
+    prisma.reviewItem.count({ where: { status: "pending" } }),
+  ]);
+
+  return NextResponse.json({ items, total, page, limit });
 }
 
 // Batch approve all pending
