@@ -5,6 +5,7 @@ import { CATEGORY_LABELS, MEMORY_CATEGORIES, type MemoryCategory } from "@/contr
 import { CATEGORY_MEMORY_TOOL_LIST } from "@/contracts/memory-routing";
 import { ingestExchangeFacts } from "@/services/exchange-ingest";
 import { getContextBundle } from "@/services/context";
+import { computeWorkspace, formatWorkspaceForMcp } from "@/services/workspace";
 
 type DefaultOrigin = "claude" | "poke";
 
@@ -315,15 +316,18 @@ export function createCortexMcpServer(options: { defaultOrigin: DefaultOrigin })
 
   server.tool(
     "cortex_get_relevant_memories",
-    "Universal Cortex memory router. Call this before answering any memory-sensitive or personal question when you do not know the exact memory category. It ranks all active non-sensitive memories across identity, education/career, projects, research, preferences, goals, relationships, writing voice, workflows, and temporary context.",
+    "Universal Cortex memory router with Global Workspace selection. Uses coherence clustering and ignition to return the most relevant, contextually-coherent memories. When related memories cluster together (3+), the workspace 'ignites' — sharply prioritizing that cluster for focused context.",
     {
       question: z.string().describe("The user's question or request, verbatim if possible."),
-      max_results: z.number().int().min(1).max(50).optional().describe("Maximum number of memories to return. Defaults to 12."),
+      max_results: z.number().int().min(1).max(50).optional().describe("Maximum number of memories to return. Defaults to 20 (workspace capacity)."),
     },
     async ({ question, max_results }) => {
-      const memories = await getRelevantMemoriesForQuestion(question, max_results ?? 12);
+      const state = await computeWorkspace({
+        question,
+        config: max_results ? { capacity: max_results } : undefined,
+      });
       return {
-        content: [{ type: "text" as const, text: formatRelevantMemories(question, memories) }],
+        content: [{ type: "text" as const, text: formatWorkspaceForMcp(state) }],
       };
     }
   );
@@ -395,6 +399,44 @@ export function createCortexMcpServer(options: { defaultOrigin: DefaultOrigin })
 
       return {
         content: [{ type: "text" as const, text: lines.join("\n") }],
+      };
+    }
+  );
+
+  server.tool(
+    "cortex_get_workspace",
+    "Inspect the Global Workspace state — see which memories are currently 'active' (capacity-limited, coherence-clustered), whether ignition fired, what's suppressed, and workspace utilization. Useful for understanding what context Cortex would surface for a given query.",
+    {
+      question: z.string().optional().describe("Optional query to compute workspace for. If omitted, returns a default workspace of strongest memories."),
+      focus_mode: z.enum(["balanced", "work", "personal", "research"]).optional().describe("Optional focus mode to bias workspace selection."),
+    },
+    async ({ question, focus_mode }) => {
+      const state = await computeWorkspace({
+        question: question ?? undefined,
+        focusModeId: focus_mode ?? undefined,
+      });
+      return {
+        content: [{ type: "text" as const, text: formatWorkspaceForMcp(state) }],
+      };
+    }
+  );
+
+  server.tool(
+    "cortex_steer_workspace",
+    "Steer the Global Workspace by boosting or suppressing memory categories. This is analogous to 'directed modulation' — you can bias which types of memories enter the workspace for the current query context.",
+    {
+      question: z.string().describe("The question or context to compute workspace for."),
+      boost_categories: z.array(z.enum(MEMORY_CATEGORIES)).optional().describe("Categories to boost (1.5x score)."),
+      suppress_categories: z.array(z.enum(MEMORY_CATEGORIES)).optional().describe("Categories to suppress (0.5x score)."),
+    },
+    async ({ question, boost_categories, suppress_categories }) => {
+      const state = await computeWorkspace({
+        question,
+        boostCategories: boost_categories as MemoryCategory[] | undefined,
+        suppressCategories: suppress_categories as MemoryCategory[] | undefined,
+      });
+      return {
+        content: [{ type: "text" as const, text: formatWorkspaceForMcp(state) }],
       };
     }
   );

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Search, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { Search, ZoomIn, ZoomOut, Maximize2, Layers } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import type { WorkspaceState } from "@/contracts/workspace";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -183,6 +184,8 @@ export default function GraphPage() {
   const [selectedConnectionCount, setSelectedConnectionCount] = useState(0);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [stats, setStats] = useState({ nodes: 0, edges: 0, categories: 0 });
+  const [workspaceOverlay, setWorkspaceOverlay] = useState(false);
+  const [workspaceIds, setWorkspaceIds] = useState<Set<string>>(new Set());
 
   // ─── Search effect ──────────────────────────────────────────────────────
 
@@ -349,10 +352,26 @@ export default function GraphPage() {
       const isSelected = selectedNode?.id === node.id;
       const isConnected = highlightedIds.has(node.id);
       const isSearchMatch = node.searchMatch;
-      const dimmed = (hasSelection && !isConnected) || (hasSearch && !isSearchMatch);
+      const isInWorkspace = workspaceOverlay && workspaceIds.size > 0 && workspaceIds.has(node.id);
+      const workspaceDimmed = workspaceOverlay && workspaceIds.size > 0 && !isInWorkspace && !node.isCluster;
+      const dimmed = workspaceDimmed || (hasSelection && !isConnected) || (hasSearch && !isSearchMatch);
 
       const nodeRadius = node.radius;
       const alpha = dimmed ? 0.12 : 1;
+
+      // Glow for workspace members
+      if (isInWorkspace && !dimmed) {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, nodeRadius + 6 / zoomRef.current, 0, Math.PI * 2);
+        const gradient = ctx.createRadialGradient(
+          node.x, node.y, nodeRadius,
+          node.x, node.y, nodeRadius + 6 / zoomRef.current
+        );
+        gradient.addColorStop(0, LIME_ACCENT + "55");
+        gradient.addColorStop(1, LIME_ACCENT + "00");
+        ctx.fillStyle = gradient;
+        ctx.fill();
+      }
 
       // Glow for search matches
       if (isSearchMatch && !dimmed) {
@@ -454,7 +473,7 @@ export default function GraphPage() {
     }
 
     ctx.restore();
-  }, [search, selectedNode, hoveredNode]);
+  }, [search, selectedNode, hoveredNode, workspaceOverlay, workspaceIds]);
 
   // ─── Animation loop ─────────────────────────────────────────────────────
 
@@ -557,6 +576,24 @@ export default function GraphPage() {
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
   }, [resize]);
+
+  // ─── Workspace overlay data ────────────────────────────────────────────
+  useEffect(() => {
+    if (!workspaceOverlay) {
+      setWorkspaceIds(new Set());
+      return;
+    }
+    async function fetchWorkspace() {
+      try {
+        const res = await fetch("/api/workspace");
+        const data: WorkspaceState = await res.json();
+        setWorkspaceIds(new Set(data.active.map((c) => c.memoryId)));
+      } catch {
+        setWorkspaceIds(new Set());
+      }
+    }
+    fetchWorkspace();
+  }, [workspaceOverlay]);
 
   // ─── Start animation loop after loading ─────────────────────────────────
 
@@ -795,9 +832,21 @@ export default function GraphPage() {
         </div>
       )}
 
-      {/* Zoom controls - bottom right */}
+      {/* Zoom controls + workspace toggle - bottom right */}
       {!loading && (
         <div className="absolute bottom-5 right-5 z-10 flex flex-col gap-1">
+          <button
+            onClick={() => setWorkspaceOverlay((v) => !v)}
+            className={`h-9 w-9 flex items-center justify-center rounded-lg backdrop-blur-sm border transition-colors ${
+              workspaceOverlay
+                ? "bg-lime/20 border-lime/50 text-lime"
+                : "bg-neutral-900/80 border-neutral-800 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/80"
+            }`}
+            title="Toggle workspace overlay"
+          >
+            <Layers className="h-4 w-4" />
+          </button>
+          <div className="h-1" />
           <button
             onClick={zoomIn}
             className="h-9 w-9 flex items-center justify-center rounded-lg bg-neutral-900/80 backdrop-blur-sm border border-neutral-800 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/80 transition-colors"

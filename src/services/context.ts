@@ -4,12 +4,17 @@ import { CATEGORY_LABELS, type MemoryCategory } from "@/contracts/memory";
 import { ContextBundleSchema, type ContextBundle, type ContextDestination } from "@/contracts/context";
 import { filterMemoriesForDestination, getExchangePolicy } from "@/services/exchange-policy";
 import type { ExchangeDestination } from "@/contracts/exchange";
+import { computeWorkspace } from "@/services/workspace";
 
 interface ContextOptions {
   destination?: ContextDestination;
   sourceId?: string;
   includeSensitive?: boolean;
   maxItems?: number;
+  /** When provided, uses workspace engine to select memories based on query relevance + coherence */
+  workspaceQuery?: string;
+  /** Focus mode for workspace steering */
+  workspaceFocusMode?: string;
 }
 
 interface RawMemory {
@@ -129,16 +134,31 @@ export async function getContextBundle(options: ContextOptions = {}): Promise<Co
     ? getExchangePolicy(config, exchangeDestination)
     : null;
 
-  const policyFiltered = policy
-    ? filterMemoriesForDestination(allMemories, policy)
-    : allMemories.filter((memory) => options.includeSensitive || !memory.sensitive);
-  const sensitiveFiltered = options.includeSensitive
-    ? policyFiltered
-    : policyFiltered.filter((memory) => !memory.sensitive);
-  const sorted = sensitiveFiltered.sort(sortMemories);
-  const selected = typeof options.maxItems === "number" && options.maxItems > 0
-    ? sorted.slice(0, options.maxItems)
-    : sorted;
+  let selected: RawMemory[];
+
+  if (options.workspaceQuery) {
+    // Workspace path: coherence-aware, capacity-limited selection
+    const workspaceState = await computeWorkspace({
+      question: options.workspaceQuery,
+      focusModeId: options.workspaceFocusMode,
+    });
+    const workspaceIds = new Set(workspaceState.active.map((c) => c.memoryId));
+    selected = allMemories
+      .filter((m) => workspaceIds.has(m.id))
+      .filter((m) => options.includeSensitive || !m.sensitive);
+  } else {
+    // Original flat path
+    const policyFiltered = policy
+      ? filterMemoriesForDestination(allMemories, policy)
+      : allMemories.filter((memory) => options.includeSensitive || !memory.sensitive);
+    const sensitiveFiltered = options.includeSensitive
+      ? policyFiltered
+      : policyFiltered.filter((memory) => !memory.sensitive);
+    const sorted = sensitiveFiltered.sort(sortMemories);
+    selected = typeof options.maxItems === "number" && options.maxItems > 0
+      ? sorted.slice(0, options.maxItems)
+      : sorted;
+  }
   const omittedSensitiveCount = allMemories.filter((memory) => memory.sensitive).length;
 
   const grouped = new Map<string, RawMemory[]>();

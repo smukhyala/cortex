@@ -53,6 +53,7 @@ model Memory {
   referenceCount Int       @default(1)
   lastReferencedAt DateTime @default(now())
   manuallyStrong Boolean   @default(false)
+  pinned         Boolean   @default(false)
 
   sourceId       String
   source         Source    @relation(fields: [sourceId], references: [id])

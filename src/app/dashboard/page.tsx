@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { FileUpload } from "@/components/features/file-upload";
 import Link from "next/link";
@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import { ServiceLogo } from "@/components/features/service-logos";
 import { SOURCE_TYPE_DISPLAY } from "@/contracts/source";
+import { WorkspaceRing } from "@/components/workspace-ring";
+import { WorkspaceExplorer } from "@/components/workspace-explorer";
+import type { WorkspaceState } from "@/contracts/workspace";
 
 interface Source {
   id: string;
@@ -47,6 +50,11 @@ export default function DashboardPage() {
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [settingUp, setSettingUp] = useState(false);
+  const [workspaceState, setWorkspaceState] = useState<WorkspaceState | null>(null);
+
+  const handleWorkspaceComputed = useCallback((state: WorkspaceState) => {
+    setWorkspaceState(state);
+  }, []);
 
   useEffect(() => {
     fetchAll();
@@ -204,6 +212,22 @@ export default function DashboardPage() {
           </Link>
         </div>
       </section>
+
+      {/* ── Global Workspace ── */}
+      {stats && stats.memories > 0 && (
+        <section>
+          <p className="maze-eyebrow mb-6" data-animate>Global Workspace</p>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <WorkspaceRing state={workspaceState} />
+            <div className="lg:col-span-2 maze-card p-6" data-animate="1">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-4">
+                Workspace Explorer
+              </p>
+              <WorkspaceExplorer onWorkspaceComputed={handleWorkspaceComputed} />
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── Sources ── */}
       {sources.length > 0 && (
