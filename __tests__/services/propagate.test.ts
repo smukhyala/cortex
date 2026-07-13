@@ -31,6 +31,14 @@ vi.mock("@/exporters/chatgpt", () => ({
   formatForChatGPT: vi.fn(),
 }));
 
+vi.mock("@/services/j-lens", () => ({
+  getWorkspaceResponse: vi.fn().mockResolvedValue({
+    slots: [],
+    capacity: { used: 0, total: 20 },
+    lastUpdated: new Date().toISOString(),
+  }),
+}));
+
 vi.mock("fs", () => ({
   default: {
     statSync: vi.fn(),
