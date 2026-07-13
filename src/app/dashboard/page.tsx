@@ -19,8 +19,9 @@ import {
 import { ServiceLogo } from "@/components/features/service-logos";
 import { SOURCE_TYPE_DISPLAY } from "@/contracts/source";
 import { WorkspaceRing } from "@/components/workspace-ring";
-import { WorkspaceExplorer } from "@/components/workspace-explorer";
-import type { WorkspaceState } from "@/contracts/workspace";
+import { WorkspaceSlotCard } from "@/components/workspace-slot-card";
+import { DecayTimeline } from "@/components/decay-timeline";
+import { useWorkspace } from "@/hooks/use-workspace";
 
 interface Source {
   id: string;
@@ -50,11 +51,14 @@ export default function DashboardPage() {
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [settingUp, setSettingUp] = useState(false);
-  const [workspaceState, setWorkspaceState] = useState<WorkspaceState | null>(null);
 
-  const handleWorkspaceComputed = useCallback((state: WorkspaceState) => {
-    setWorkspaceState(state);
-  }, []);
+  const {
+    workspace,
+    loading: workspaceLoading,
+    holdInMind,
+    suppressConcept,
+    releaseConcept,
+  } = useWorkspace();
 
   useEffect(() => {
     fetchAll();
@@ -121,6 +125,8 @@ export default function DashboardPage() {
   const stats = status?.stats;
   const connections = status?.connections;
 
+  const occupiedSlots = workspace?.slots.filter((s) => s.memoryId !== null) ?? [];
+
   return (
     <div className="space-y-12">
 
@@ -153,6 +159,55 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Workspace Dashboard ── */}
+      {workspace && occupiedSlots.length > 0 && (
+        <section>
+          <p className="maze-eyebrow mb-6" data-animate>Global Workspace</p>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Ring visualization — 1/3 width */}
+            <div data-animate>
+              <WorkspaceRing
+                slots={workspace.slots}
+                capacity={workspace.capacity}
+              />
+            </div>
+
+            {/* Slot cards grid — 2/3 width */}
+            <div className="lg:col-span-2 space-y-3" data-animate="1">
+              <p className="text-[11px] font-medium text-stone-500 uppercase tracking-wider mb-2">
+                Active Concepts ({workspace.capacity.used}/{workspace.capacity.total})
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {occupiedSlots.map((slot) => (
+                  <WorkspaceSlotCard
+                    key={slot.position}
+                    slot={slot}
+                    onHold={holdInMind}
+                    onRelease={releaseConcept}
+                    onSuppress={suppressConcept}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Decay Timeline — full width below */}
+          <div className="mt-4" data-animate="2">
+            <DecayTimeline slots={workspace.slots} />
+          </div>
+        </section>
+      )}
+
+      {/* ── Loading state for workspace ── */}
+      {workspaceLoading && (
+        <section>
+          <p className="maze-eyebrow mb-6" data-animate>Global Workspace</p>
+          <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-12 flex items-center justify-center">
+            <div className="h-5 w-5 border-2 border-lime/30 border-t-lime rounded-full animate-spin" />
+          </div>
+        </section>
+      )}
 
       {/* ── Stats + Connections ── */}
       <section>
@@ -212,22 +267,6 @@ export default function DashboardPage() {
           </Link>
         </div>
       </section>
-
-      {/* ── Global Workspace ── */}
-      {stats && stats.memories > 0 && (
-        <section>
-          <p className="maze-eyebrow mb-6" data-animate>Global Workspace</p>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <WorkspaceRing state={workspaceState} />
-            <div className="lg:col-span-2 maze-card p-6" data-animate="1">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-4">
-                Workspace Explorer
-              </p>
-              <WorkspaceExplorer onWorkspaceComputed={handleWorkspaceComputed} />
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* ── Sources ── */}
       {sources.length > 0 && (

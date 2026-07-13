@@ -105,3 +105,29 @@ export const WorkspaceStateSchema = z.object({
 });
 
 export type WorkspaceState = z.infer<typeof WorkspaceStateSchema>;
+
+// ─── Workspace Slot Response (J-Space dashboard API shape) ─────────────────
+
+export const WorkspaceSlotResponseSchema = z.object({
+  position: z.number().int(),
+  memoryId: z.string().nullable(),
+  conceptLabel: z.string().nullable(),
+  loading: z.number().min(0).max(1),
+  pinned: z.boolean(),
+  sourceSignal: z.enum(["activity", "query", "ignition", "manual"]),
+  activatedAt: z.string().nullable(),
+  memories: z.array(z.string()),
+});
+
+export type WorkspaceSlotResponse = z.infer<typeof WorkspaceSlotResponseSchema>;
+
+export const WorkspaceResponseSchema = z.object({
+  slots: z.array(WorkspaceSlotResponseSchema),
+  capacity: z.object({
+    used: z.number().int(),
+    total: z.number().int(),
+  }),
+  lastUpdated: z.string(),
+});
+
+export type WorkspaceResponse = z.infer<typeof WorkspaceResponseSchema>;
