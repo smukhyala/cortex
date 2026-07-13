@@ -405,9 +405,9 @@ describe("getWorkspaceResponse", () => {
     expect(response.slots).toHaveLength(1);
     expect(response.slots[0].position).toBe(0);
     expect(response.slots[0].memoryId).toBe("mem-1");
-    expect(response.slots[0].content).toBe("User builds Cortex project");
-    expect(response.capacity).toBe(20);
-    expect(response.occupied).toBe(1);
+    expect(response.slots[0].memories).toEqual(["User builds Cortex project"]);
+    expect(response.capacity.used).toBe(1);
+    expect(response.capacity.total).toBe(20);
     expect(response.lastUpdated).toBeDefined();
   });
 
@@ -417,7 +417,7 @@ describe("getWorkspaceResponse", () => {
     const response = await getWorkspaceResponse();
 
     expect(response.slots).toHaveLength(0);
-    expect(response.occupied).toBe(0);
-    expect(response.capacity).toBe(20);
+    expect(response.capacity.used).toBe(0);
+    expect(response.capacity.total).toBe(20);
   });
 });
