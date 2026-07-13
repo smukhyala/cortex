@@ -20,25 +20,39 @@ const CATEGORY_HEADINGS: Record<string, string> = {
   temporary: "Current Context",
 };
 
-export function formatCortexSection(memories: Array<{ content: string; category: string }>): string {
-  const grouped = new Map<string, string[]>();
-  for (const mem of memories) {
-    const existing = grouped.get(mem.category) || [];
-    existing.push(mem.content);
-    grouped.set(mem.category, existing);
-  }
-
+export function formatCortexSection(
+  memories: Array<{ content: string; category: string }>,
+  opts?: { workspaceMode?: boolean }
+): string {
   const lines: string[] = [];
   lines.push(CORTEX_BEGIN);
   lines.push(`<!-- Synced by Cortex | ${new Date().toISOString()} -->`);
 
-  for (const [category, items] of grouped) {
-    const heading = CATEGORY_HEADINGS[category] || category;
+  if (opts?.workspaceMode) {
+    // Workspace-first: flat list under a single "Current Workspace" heading
     lines.push("");
-    lines.push(`## ${heading}`);
+    lines.push("## Current Workspace");
     lines.push("");
-    for (const item of items) {
-      lines.push(`- ${item}`);
+    for (const mem of memories) {
+      lines.push(`- ${mem.content}`);
+    }
+  } else {
+    // Legacy: group by category
+    const grouped = new Map<string, string[]>();
+    for (const mem of memories) {
+      const existing = grouped.get(mem.category) || [];
+      existing.push(mem.content);
+      grouped.set(mem.category, existing);
+    }
+
+    for (const [category, items] of grouped) {
+      const heading = CATEGORY_HEADINGS[category] || category;
+      lines.push("");
+      lines.push(`## ${heading}`);
+      lines.push("");
+      for (const item of items) {
+        lines.push(`- ${item}`);
+      }
     }
   }
 
@@ -51,13 +65,13 @@ export function formatCortexSection(memories: Array<{ content: string; category:
  */
 export function formatForClaude(
   memories: MemoryForExport[],
-  opts?: { includeSensitive?: boolean }
+  opts?: { includeSensitive?: boolean; workspaceMode?: boolean }
 ): string {
   const filtered = opts?.includeSensitive
     ? memories
     : memories.filter((m) => !m.sensitive);
 
-  return formatCortexSection(filtered);
+  return formatCortexSection(filtered, { workspaceMode: opts?.workspaceMode });
 }
 
 /**

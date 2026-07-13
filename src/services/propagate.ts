@@ -5,6 +5,7 @@ import { pushToPoke } from "@/exporters/poke";
 import { writeClaudeExport } from "@/exporters/claude";
 import { formatForChatGPT } from "@/exporters/chatgpt";
 import { filterMemoriesForDestination, getExchangePolicy } from "@/services/exchange-policy";
+import { getWorkspaceResponse } from "@/services/j-lens";
 
 interface PropagationResult {
   destinations: Array<{
@@ -59,6 +60,19 @@ export async function propagateToAllPlatforms(
     },
   });
 
+  // Fetch workspace for workspace-first exports
+  let workspaceMemories: typeof memories = [];
+  try {
+    const workspace = await getWorkspaceResponse();
+    const workspaceMemoryContents = new Set(
+      workspace.slots.flatMap((s) => s.memories)
+    );
+    workspaceMemories = memories.filter((m) => workspaceMemoryContents.has(m.content));
+  } catch {
+    // Fall back to full memory list if workspace unavailable
+    workspaceMemories = memories;
+  }
+
   const sources = await prisma.source.findMany({
     where: { status: "active" },
   });
@@ -75,7 +89,7 @@ export async function propagateToAllPlatforms(
     if (onlyDestinations && !onlyDestinations.has("claude_code")) continue;
     try {
       const policy = getExchangePolicy(source.config, "claude_code");
-      const destinationMemories = filterMemoriesForDestination(memories, policy);
+      const destinationMemories = filterMemoriesForDestination(workspaceMemories.length > 0 ? workspaceMemories : memories, policy);
       const config = readConfig(source.config);
       const configuredPath = config.filePath || config.path;
       if (typeof configuredPath === "string") {
@@ -148,7 +162,7 @@ export async function propagateToAllPlatforms(
     if (onlyDestinations && !onlyDestinations.has("poke")) continue;
     try {
       const policy = getExchangePolicy(target.config, "poke");
-      const destinationMemories = filterMemoriesForDestination(memories, policy);
+      const destinationMemories = filterMemoriesForDestination(workspaceMemories.length > 0 ? workspaceMemories : memories, policy);
       const targetCategory = targetedCategory(options);
       if (
         options.pokeMessage &&
@@ -236,7 +250,7 @@ export async function propagateToAllPlatforms(
     !skipDestinations.has("chatgpt_export") &&
     (!onlyDestinations || onlyDestinations.has("chatgpt_export"))
   ) {
-    results.chatgptText = formatForChatGPT(memories);
+    results.chatgptText = formatForChatGPT(workspaceMemories.length > 0 ? workspaceMemories : memories);
     results.destinations.push({
       type: "chatgpt_export",
       name: "ChatGPT",
