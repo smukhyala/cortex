@@ -6,6 +6,15 @@ import { CATEGORY_MEMORY_TOOL_LIST } from "@/contracts/memory-routing";
 import { ingestExchangeFacts } from "@/services/exchange-ingest";
 import { getContextBundle } from "@/services/context";
 import { computeWorkspace, formatWorkspaceForMcp } from "@/services/workspace";
+import {
+  getWorkspaceResponse,
+  reinforceSlots,
+  holdInMind,
+  suppress,
+  release,
+  logSignal,
+  decayAllSlots,
+} from "@/services/j-lens";
 
 type DefaultOrigin = "claude" | "poke";
 
@@ -405,55 +414,180 @@ export function createCortexMcpServer(options: { defaultOrigin: DefaultOrigin })
 
   server.tool(
     "cortex_get_workspace",
-    "Inspect the Global Workspace state — see which memories are currently 'active' (capacity-limited, coherence-clustered), whether ignition fired, what's suppressed, and workspace utilization. Useful for understanding what context Cortex would surface for a given query.",
-    {
-      question: z.string().optional().describe("Optional query to compute workspace for. If omitted, returns a default workspace of strongest memories."),
-      focus_mode: z.enum(["balanced", "work", "personal", "research"]).optional().describe("Optional focus mode to bias workspace selection."),
-    },
-    async ({ question, focus_mode }) => {
-      const state = await computeWorkspace({
-        question: question ?? undefined,
-        focusModeId: focus_mode ?? undefined,
-      });
-      return {
-        content: [{ type: "text" as const, text: formatWorkspaceForMcp(state) }],
-      };
+    "Inspect the J-Space workspace — see which memories currently occupy slots, their loading %, pinned status, and workspace capacity. Runs decay first to ensure fresh state.",
+    {},
+    async () => {
+      try {
+        const decayResult = await decayAllSlots();
+        const workspace = await getWorkspaceResponse();
+
+        const lines: string[] = [];
+        lines.push(`Workspace: ${workspace.occupied}/${workspace.capacity} slots occupied`);
+        if (decayResult.evicted > 0) {
+          lines.push(`(${decayResult.decayed} decayed, ${decayResult.evicted} evicted this cycle)`);
+        }
+        lines.push("");
+
+        if (workspace.slots.length === 0) {
+          lines.push("No memories in workspace. The user may not have synced any sources yet.");
+        } else {
+          for (const slot of workspace.slots) {
+            const pin = slot.pinned ? " [pinned]" : "";
+            const label = slot.conceptLabel ? ` (${slot.conceptLabel})` : "";
+            lines.push(`- Slot ${slot.position}: ${slot.content}${label} — loading: ${Math.round(slot.loading * 100)}%${pin}`);
+          }
+        }
+
+        return { content: [{ type: "text" as const, text: lines.join("\n") }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return {
+          content: [{ type: "text" as const, text: `Failed to get workspace: ${msg}` }],
+          isError: true,
+        };
+      }
     }
   );
 
   server.tool(
-    "cortex_steer_workspace",
-    "Steer the Global Workspace by boosting or suppressing memory categories. This is analogous to 'directed modulation' — you can bias which types of memories enter the workspace for the current query context.",
+    "cortex_search_background",
+    "Search background-tier memories — memories not currently in the workspace. Use this to find dormant context that may be relevant to the current conversation.",
     {
-      question: z.string().describe("The question or context to compute workspace for."),
-      boost_categories: z.array(z.enum(MEMORY_CATEGORIES)).optional().describe("Categories to boost (1.5x score)."),
-      suppress_categories: z.array(z.enum(MEMORY_CATEGORIES)).optional().describe("Categories to suppress (0.5x score)."),
+      query: z.string().describe("Search query to match against background memory content."),
     },
-    async ({ question, boost_categories, suppress_categories }) => {
-      const state = await computeWorkspace({
-        question,
-        boostCategories: boost_categories as MemoryCategory[] | undefined,
-        suppressCategories: suppress_categories as MemoryCategory[] | undefined,
-      });
-      return {
-        content: [{ type: "text" as const, text: formatWorkspaceForMcp(state) }],
-      };
+    async ({ query }) => {
+      try {
+        const memories = await prisma.memory.findMany({
+          where: {
+            status: "active",
+            tier: "background",
+            content: { contains: query },
+          },
+          select: {
+            id: true,
+            content: true,
+            category: true,
+            confidence: true,
+          },
+          take: 20,
+        });
+
+        if (memories.length === 0) {
+          return { content: [{ type: "text" as const, text: `No background memories found matching "${query}".` }] };
+        }
+
+        const lines = memories.map(
+          (m) => `- [${m.category}] ${m.content} (confidence: ${Math.round(m.confidence * 100)}%)`
+        );
+        return {
+          content: [{ type: "text" as const, text: `Found ${memories.length} background memories matching "${query}":\n\n${lines.join("\n")}` }],
+        };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return {
+          content: [{ type: "text" as const, text: `Failed to search background memories: ${msg}` }],
+          isError: true,
+        };
+      }
     }
   );
 
-  for (const config of CATEGORY_MEMORY_TOOL_LIST) {
-    server.tool(
-      config.name,
-      config.description,
-      {},
-      async () => {
-        const memories = await getCategoryMemories(config.category);
+  server.tool(
+    "cortex_hold_in_mind",
+    "Pin a concept into the workspace — finds the best matching memory and loads it into a workspace slot with full loading. The memory stays pinned until explicitly released.",
+    {
+      concept: z.string().describe("The concept or topic to hold in mind, e.g. 'Cortex project' or 'research with Ian'."),
+    },
+    async ({ concept }) => {
+      try {
+        const result = await holdInMind(concept);
         return {
-          content: [{ type: "text" as const, text: formatCategoryMemories(config.category, memories) }],
+          content: [{ type: "text" as const, text: `Pinned "${result.conceptLabel}" in workspace slot ${result.slotPosition}.` }],
+        };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return {
+          content: [{ type: "text" as const, text: `Failed to hold in mind: ${msg}` }],
+          isError: true,
         };
       }
-    );
-  }
+    }
+  );
+
+  server.tool(
+    "cortex_suppress",
+    "Suppress a concept from the workspace — evicts the matching memory from its slot and prevents it from re-entering for a specified duration.",
+    {
+      concept: z.string().describe("The concept or topic to suppress from the workspace."),
+      duration_hours: z.number().optional().describe("How long to suppress, in hours. Defaults to 24."),
+    },
+    async ({ concept, duration_hours }) => {
+      try {
+        const result = await suppress(concept, duration_hours ?? 24);
+        return {
+          content: [{ type: "text" as const, text: `Suppressed from slot ${result.evictedSlot} until ${result.suppressedUntil}.` }],
+        };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return {
+          content: [{ type: "text" as const, text: `Failed to suppress: ${msg}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "cortex_release",
+    "Release a pinned concept — unpins the memory so it can naturally decay out of the workspace over time.",
+    {
+      concept: z.string().describe("The concept or topic to release from pinned status."),
+    },
+    async ({ concept }) => {
+      try {
+        const result = await release(concept);
+        return {
+          content: [{ type: "text" as const, text: `Released pin on slot ${result.slotPosition}. Memory will now decay naturally.` }],
+        };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return {
+          content: [{ type: "text" as const, text: `Failed to release: ${msg}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "cortex_log_signal",
+    "Log an activity signal and reinforce matching workspace slots. Use this to tell Cortex what the user is currently focused on, so the workspace can adapt.",
+    {
+      keywords: z.array(z.string()).describe("Keywords describing the current activity or focus."),
+      categories: z.array(z.string()).optional().describe("Optional memory categories relevant to this activity."),
+      source: z.string().optional().describe("Source of the signal, e.g. 'mcp' or 'conversation'."),
+    },
+    async ({ keywords, categories, source }) => {
+      try {
+        await logSignal({
+          type: "mcp_query",
+          keywords,
+          categories: categories ?? [],
+          sourceType: source ?? "mcp",
+        });
+        const reinforced = await reinforceSlots(keywords);
+        return {
+          content: [{ type: "text" as const, text: `Signal logged. ${reinforced} workspace slots reinforced.` }],
+        };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return {
+          content: [{ type: "text" as const, text: `Failed to log signal: ${msg}` }],
+          isError: true,
+        };
+      }
+    }
+  );
 
   server.tool(
     "cortex_save_conversation",

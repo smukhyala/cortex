@@ -54,6 +54,8 @@ model Memory {
   lastReferencedAt DateTime @default(now())
   manuallyStrong Boolean   @default(false)
   pinned         Boolean   @default(false)
+  tier           String    @default("background") // background | workspace
+  suppressedUntil DateTime?
 
   sourceId       String
   source         Source    @relation(fields: [sourceId], references: [id])
@@ -67,6 +69,9 @@ model Memory {
 
   project        String?
 
+  tier            String   @default("background") // background | workspace
+  suppressedUntil DateTime?
+
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -74,6 +79,7 @@ model Memory {
   conflictsAsNew Conflict[] @relation("ConflictNew")
   conflictsAsOld Conflict[] @relation("ConflictExisting")
   folders        MemoryFolder[]
+  workspaceSlot  WorkspaceSlot?
 
   @@index([category])
   @@index([status])
@@ -192,4 +198,34 @@ model MemoryFolder {
   @@unique([memoryId, folderId])
   @@index([memoryId])
   @@index([folderId])
+}
+
+model WorkspaceSlot {
+  id            String    @id @default(cuid())
+  position      Int       @unique              // 0-19
+  memoryId      String?   @unique
+  memory        Memory?   @relation(fields: [memoryId], references: [id])
+  conceptLabel  String?
+  loading       Float     @default(0.0)        // 0.0-1.0
+  decayRate     Float     @default(0.0000688)  // ln(2)/10080 per minute (~7-day half-life)
+  pinned        Boolean   @default(false)
+  sourceSignal  String    @default("activity") // activity | explicit | query | sync
+  activatedAt   DateTime  @default(now())
+  loadedAt      DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model ActivitySignal {
+  id         String   @id @default(cuid())
+  type       String                          // mcp_query | conversation_sync | file_change | manual
+  keywords   String                          // JSON array as string
+  categories String                          // JSON array as string
+  sourceType String?
+  timestamp  DateTime @default(now())
+  processed  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([processed])
+  @@index([timestamp])
 }
