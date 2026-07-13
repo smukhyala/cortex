@@ -367,11 +367,12 @@ export async function scoreBatch(): Promise<{ loaded: number; evicted: number }>
     // Confidence score
     const confidenceScore = mem.confidence as number;
 
+    const w = config.weights;
     const totalScore =
-      config.keywordWeight * keywordScore +
-      config.categoryWeight * categoryScore +
-      config.recencyWeight * recencyScore +
-      config.confidenceWeight * confidenceScore;
+      w.keywordOverlap * keywordScore +
+      w.categoryMatch * categoryScore +
+      w.recencyBoost * recencyScore +
+      w.coOccurrence * confidenceScore;
 
     return { memory: mem, totalScore };
   });
