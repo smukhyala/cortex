@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { readFile } from "fs/promises";
+import AdmZip from "adm-zip";
 import type { NormalizedConversation, NormalizedMessage } from "@/contracts/conversation";
 
 // ─── Claude.ai Export Types ─────────────────────────────────────────────────
@@ -40,11 +41,24 @@ function extractMessageText(msg: ClaudeMessage): string {
 
 // ─── Parser ─────────────────────────────────────────────────────────────────
 
+async function readClaudeConversations(filePath: string): Promise<ClaudeConversation[]> {
+  if (filePath.endsWith(".zip")) {
+    const zip = new AdmZip(filePath);
+    const convEntry = zip.getEntries().find(
+      (e) => e.entryName === "conversations.json" || e.entryName.endsWith("/conversations.json")
+    );
+    if (!convEntry) {
+      throw new Error("No conversations.json found in Claude export ZIP");
+    }
+    return JSON.parse(convEntry.getData().toString("utf-8"));
+  }
+  return JSON.parse(await readFile(filePath, "utf-8"));
+}
+
 export async function parseClaudeExport(
   filePath: string
 ): Promise<NormalizedConversation[]> {
-  const raw = await readFile(filePath, "utf-8");
-  const conversations: ClaudeConversation[] = JSON.parse(raw);
+  const conversations = await readClaudeConversations(filePath);
 
   return conversations
     .filter((conv) => conv.chat_messages.length > 0)

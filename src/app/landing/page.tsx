@@ -1,270 +1,293 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowRight, Brain, CheckCircle, Database, GitMerge, Inbox, Lock, Network, RefreshCw, Send, Sparkles, Star, Zap } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
-interface StatusStats {
+interface MemoryItem {
+  id: string;
+  content: string;
+  category: string;
+}
+
+interface Stats {
   memories: number;
-  pending?: number;
+  pending: number;
   sources: number;
-  lastSync: string | null;
 }
 
-interface StatusConnections {
-  [key: string]: { connected: boolean; label: string };
-}
+const CAT_COLORS: Record<string, string> = {
+  identity: "#6d9fff",
+  education_career: "#c89dff",
+  projects: "#5de8b5",
+  research: "#ffd760",
+  preferences: "#ffab5e",
+  goals: "#ff8ec6",
+  relationships: "#8b8fff",
+  writing_voice: "#5ed8e8",
+  workflows: "#5ee8c4",
+  temporary: "#888",
+};
 
-function formatLastSync(lastSync: string | null): string {
-  if (!lastSync) return "Never";
-  return new Date(lastSync).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-export default function HomePage() {
-  const [stats, setStats] = useState<StatusStats | null>(null);
-  const [connections, setConnections] = useState<StatusConnections>({});
+export default function LandingPage() {
+  const [memories, setMemories] = useState<MemoryItem[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
+    fetch("/api/memories?limit=14")
+      .then((r) => r.json())
+      .then((d) => setMemories(d.items ?? []))
+      .catch(() => {});
     fetch("/api/status")
       .then((r) => r.json())
-      .then((data) => {
-        setStats(data.stats ?? null);
-        setConnections(data.connections ?? {});
-      })
+      .then((d) => setStats(d.stats ?? null))
       .catch(() => {});
   }, []);
 
-  const connectedCount = Object.values(connections).filter((c) => c.connected).length;
-  const activeMemories = stats?.memories ?? 0;
-  const pending = stats?.pending ?? 0;
-
   return (
-    <main className="min-h-screen overflow-hidden bg-[#080a0d] text-white">
-      <style>{`
-        @keyframes landing-gradient-shift {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
+    <div
+      className="min-h-screen"
+      style={{
+        background: "#09090B",
+        color: "#FAFAFA",
+        fontFamily: "var(--font-jakarta), system-ui, sans-serif",
+      }}
+    >
+      <style dangerouslySetInnerHTML={{ __html: `
+        .lp-link { color: #FAFAFA; text-decoration: none; }
+        .lp-link:hover { opacity: 0.7; }
+        .lp-muted { color: #71717A; }
+        .lp-border { border-color: #27272A; }
+        .lp-lime { color: #84cc16; }
+        @keyframes lp-scroll {
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
         }
-
-        @keyframes landing-float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
+        .lp-ticker {
+          animation: lp-scroll 60s linear infinite;
         }
-
-        .landing-gradient {
-          background:
-            linear-gradient(120deg, rgba(8,10,13,0.95) 0%, rgba(17,24,39,0.82) 34%, rgba(42,88,65,0.72) 62%, rgba(214,146,64,0.74) 100%),
-            linear-gradient(45deg, #080a0d, #12211a, #2b5f49, #d69240);
-          background-size: 220% 220%;
-          animation: landing-gradient-shift 14s ease-in-out infinite;
+        .lp-ticker:hover {
+          animation-play-state: paused;
         }
-
-        .landing-grid {
-          background-image:
-            linear-gradient(rgba(255,255,255,0.065) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.065) 1px, transparent 1px);
-          background-size: 72px 72px;
-          mask-image: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent 78%);
+        .lp-fade-edge {
+          mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+          -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
         }
+      `}} />
 
-        .landing-float {
-          animation: landing-float 4.5s ease-in-out infinite;
-        }
-      `}</style>
-
-      <section className="landing-gradient relative min-h-screen px-6">
-        <div className="landing-grid absolute inset-0" />
-        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/40 to-transparent" />
-
-        <nav className="relative z-10 mx-auto flex h-20 max-w-6xl items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <Image src="/icon.svg" alt="Cortex" width={36} height={36} className="h-9 w-9 rounded-lg" />
-            <span className="text-sm font-semibold tracking-wide text-white/90">Cortex</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link href="/review" className="hidden text-sm text-white/70 transition hover:text-white sm:inline">
-              Review
-            </Link>
-            <Link href="/memories" className="hidden text-sm text-white/70 transition hover:text-white sm:inline">
-              Memories
-            </Link>
-            <Link href="/dashboard" className="maze-btn maze-btn-lime h-10 px-4 text-[13px]">
-              Dashboard
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-        </nav>
-
-        <div className="relative z-10 mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl flex-col items-center justify-center py-14 text-center sm:py-20">
-          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-medium text-white/75 shadow-2xl backdrop-blur-md">
-            <Sparkles className="h-3.5 w-3.5 text-lime" />
-            Memory sync for Claude, Poke, and every AI you actually use
-          </div>
-
-          <h1
-            className="max-w-5xl font-bold leading-[0.98] tracking-normal text-white"
-            style={{
-              fontSize: "clamp(3rem, 8vw, 7.75rem)",
-              fontFamily: "var(--font-jakarta), system-ui, sans-serif",
-            }}
+      {/* ── Nav ── */}
+      <nav
+        className="flex items-center justify-between px-8 lg:px-16 h-16"
+        style={{ borderBottom: "1px solid #18181B" }}
+      >
+        <span className="text-[15px] font-semibold tracking-wide">Cortex</span>
+        <div className="flex items-center gap-6">
+          <Link href="/j-space" className="lp-link text-[13px] lp-muted hidden sm:inline">J-Space</Link>
+          <Link href="/memories" className="lp-link text-[13px] lp-muted hidden sm:inline">Memories</Link>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-[13px] font-medium"
+            style={{ background: "#84cc16", color: "#09090B" }}
           >
-            One memory for all your AI tools.
-          </h1>
+            Dashboard
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </nav>
 
-          <p className="mt-7 max-w-3xl text-base leading-8 text-white/72 sm:text-xl">
-            Cortex keeps your personal context current, reconciled, and ready wherever you work. New facts flow in,
-            risky changes wait for review, and trusted memories sync back out.
+      {/* ── Hero ── */}
+      <section className="px-8 lg:px-16 pt-24 pb-20">
+        <p className="text-[13px] font-medium tracking-widest uppercase lp-lime mb-6">
+          Personal AI Memory
+        </p>
+        <h1
+          className="font-semibold leading-[1.05] tracking-tight max-w-4xl"
+          style={{ fontSize: "clamp(2.5rem, 6vw, 5rem)" }}
+        >
+          Your AI tools forget everything.
+          <br />
+          <span className="lp-muted">Cortex doesn&rsquo;t.</span>
+        </h1>
+        <p className="mt-8 text-[17px] leading-relaxed max-w-xl" style={{ color: "#A1A1AA" }}>
+          Extract memories from ChatGPT, Claude, and Poke conversations.
+          Deduplicate. Resolve conflicts. Sync back to every tool.
+        </p>
+        <div className="flex gap-4 mt-10">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 h-12 px-7 rounded-lg text-[15px] font-medium"
+            style={{ background: "#84cc16", color: "#09090B" }}
+          >
+            Open Dashboard
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          <Link
+            href="/j-space"
+            className="inline-flex items-center gap-2 h-12 px-7 rounded-lg text-[15px] font-medium lp-link"
+            style={{ border: "1px solid #27272A" }}
+          >
+            How it works
+          </Link>
+        </div>
+      </section>
+
+      {/* ── Memory ticker ── */}
+      {memories.length > 0 && (
+        <section className="py-10" style={{ borderTop: "1px solid #18181B", borderBottom: "1px solid #18181B" }}>
+          <p className="text-[11px] font-medium tracking-widest uppercase lp-muted px-8 lg:px-16 mb-5">
+            Extracted from your conversations
           </p>
-
-          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/dashboard" className="maze-btn maze-btn-lime h-12 px-7 text-[15px] font-medium">
-              Open Cortex
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/review"
-              className="maze-btn h-12 border border-white/15 bg-white/10 px-7 text-[15px] text-white backdrop-blur-md hover:bg-white/15"
-            >
-              <Inbox className="h-4 w-4" />
-              Review Queue
-            </Link>
-          </div>
-
-          <div className="mt-12 grid w-full max-w-5xl gap-4 lg:grid-cols-[1.05fr_0.95fr] lg:text-left">
-            <div className="rounded-2xl border border-white/14 bg-white/10 p-4 shadow-2xl backdrop-blur-md">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-medium text-white/70">
-                  <Network className="h-4 w-4 text-lime" />
-                  Live Memory Map
-                </div>
-                <span className="rounded-full bg-lime/15 px-2.5 py-1 text-[11px] font-medium text-lime">synced</span>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  { name: "Claude", detail: "new facts", tone: "border-sky-300/40 bg-sky-300/10 text-sky-100" },
-                  { name: "Cortex", detail: "reconcile", tone: "border-lime/50 bg-lime/15 text-lime" },
-                  { name: "Poke", detail: "writeback", tone: "border-amber-300/50 bg-amber-300/15 text-amber-100" },
-                ].map((item) => (
-                  <div key={item.name} className={`rounded-2xl border px-4 py-4 ${item.tone}`}>
-                    <p className="text-sm font-semibold">{item.name}</p>
-                    <p className="mt-1 text-[11px] uppercase tracking-wide opacity-75">{item.detail}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 space-y-3">
-                {[
-                  { text: "User is graduating in 2100.", width: "92%", tag: "manual strong" },
-                  { text: "User no longer works at Astera.", width: "76%", tag: "updated" },
-                  { text: "Logo path in packages/frontend/...", width: "24%", tag: "cleanup" },
-                ].map((memory) => (
-                  <div key={memory.text} className="rounded-2xl border border-white/12 bg-black/18 p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="min-w-0 truncate text-sm text-white/86">{memory.text}</p>
-                      <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/60">{memory.tag}</span>
-                    </div>
-                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
-                      <div className="h-full rounded-full bg-lime" style={{ width: memory.width }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid gap-3">
-              {[
-                { icon: Brain, label: "Active memories", value: activeMemories || "0", body: "clean context ready for agents" },
-                { icon: Zap, label: "Connected tools", value: connectedCount || "0", body: "sources that can read or write memory" },
-                { icon: Inbox, label: "Pending review", value: pending || "0", body: "contradictions waiting for judgment" },
-              ].map(({ label, value, body, icon: Icon }, index) => (
+          <div className="lp-fade-edge overflow-hidden">
+            <div className="lp-ticker flex gap-4 w-max">
+              {[...memories, ...memories].map((mem, i) => (
                 <div
-                  key={label}
-                  className="landing-float rounded-2xl border border-white/12 bg-white/10 px-5 py-4 shadow-2xl backdrop-blur-md"
-                  style={{ animationDelay: `${index * 0.25}s` }}
+                  key={`${mem.id}-${i}`}
+                  className="shrink-0 rounded-lg px-4 py-3 max-w-[320px]"
+                  style={{ border: "1px solid #27272A", background: "#111113" }}
                 >
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-[11px] font-medium uppercase tracking-wide text-white/50">{label}</p>
-                      <p className="mt-1 text-sm text-white/64">{body}</p>
-                    </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/10">
-                      <Icon className="h-5 w-5 text-lime" />
-                    </div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span
+                      className="h-1.5 w-1.5 rounded-full shrink-0"
+                      style={{ background: CAT_COLORS[mem.category] ?? "#888" }}
+                    />
+                    <span className="text-[10px] uppercase tracking-wider" style={{ color: "#52525B" }}>
+                      {mem.category.replace(/_/g, " ")}
+                    </span>
                   </div>
-                  <p className="mt-4 text-3xl font-semibold tracking-normal text-white">{value}</p>
+                  <p className="text-[12px] leading-relaxed line-clamp-2" style={{ color: "#D4D4D8" }}>
+                    {mem.content}
+                  </p>
                 </div>
               ))}
             </div>
           </div>
+        </section>
+      )}
+
+      {/* ── Stats ── */}
+      {stats && stats.memories > 0 && (
+        <section className="px-8 lg:px-16 py-16" style={{ borderBottom: "1px solid #18181B" }}>
+          <div className="flex items-baseline gap-16 flex-wrap">
+            <div>
+              <p className="text-5xl font-light tracking-tight">{stats.memories}</p>
+              <p className="text-[12px] tracking-widest uppercase lp-muted mt-2">memories</p>
+            </div>
+            <div>
+              <p className="text-5xl font-light tracking-tight">{stats.sources}</p>
+              <p className="text-[12px] tracking-widest uppercase lp-muted mt-2">sources</p>
+            </div>
+            <div>
+              <p className="text-5xl font-light tracking-tight">20</p>
+              <p className="text-[12px] tracking-widest uppercase lp-muted mt-2">active workspace slots</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── How it works ── */}
+      <section className="px-8 lg:px-16 py-20">
+        <p className="text-[13px] font-medium tracking-widest uppercase lp-lime mb-10">
+          How it works
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-12 max-w-4xl">
+          {[
+            {
+              title: "Import",
+              body: "Upload a ChatGPT export (.zip) or Claude export. Or connect Claude Code for live sync via file watcher.",
+            },
+            {
+              title: "Extract",
+              body: "An LLM reads each conversation and extracts atomic, durable facts. Not debugging context. Not AI opinions. Just what you said about yourself.",
+            },
+            {
+              title: "Resolve",
+              body: "Duplicate memories merge automatically. Refinements update existing facts. Genuine contradictions go to your review queue.",
+            },
+            {
+              title: "Sync",
+              body: "Approved memories write back to every tool in its native format — Custom Instructions for ChatGPT, CLAUDE.md for Claude Code, API push for Poke.",
+            },
+          ].map(({ title, body }) => (
+            <div key={title}>
+              <h3 className="text-[18px] font-medium mb-3">{title}</h3>
+              <p className="text-[14px] leading-[1.7]" style={{ color: "#A1A1AA" }}>
+                {body}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
 
-      <section className="bg-background px-6 py-16 text-foreground sm:py-20">
-        <div className="mx-auto grid max-w-5xl gap-10 md:grid-cols-[0.85fr_1.15fr] md:items-center">
-          <div className="text-center md:text-left">
-            <p className="maze-eyebrow text-lime">How Cortex Decides</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-normal sm:text-4xl">Trusted memories move fast. Risky ones pause.</h2>
-            <p className="maze-body mt-4">
-              Frequency, recency, and stable profile facts determine memory strength, while high-jeopardy or contradicting
-              additions from Claude and Poke land in review before they become active context.
-            </p>
-          </div>
-
-          <div className="grid gap-3">
-            {[
-              { icon: RefreshCw, title: "Strength with judgment", body: "Repeated facts rise naturally, while objective profile facts like school, major, and name start strong." },
-              { icon: Lock, title: "Review sensitive changes", body: "High-jeopardy memories wait for an explicit human decision." },
-              { icon: Star, title: "Manual strong marks", body: "Important memories can be pinned into the strong set when you know they matter." },
-              { icon: CheckCircle, title: "Auto-approve low-risk facts", body: "Straightforward new memories become active and show their approval path." },
-            ].map(({ icon: Icon, title, body }) => (
-              <div key={title} className="maze-card-static grid grid-cols-[2.5rem_1fr] gap-4 p-5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-lime/10">
-                  <Icon className="h-4 w-4 text-lime" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold tracking-normal">{title}</h3>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">{body}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mx-auto mt-16 max-w-5xl">
-          <div className="text-center">
-            <p className="maze-eyebrow text-lime">The Loop</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-normal sm:text-4xl">From scattered chats to one clean memory layer.</h2>
-          </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-4">
-            {[
-              { icon: Database, title: "Collect", body: "Imports from Claude, Poke, exports, and local sources." },
-              { icon: GitMerge, title: "Resolve", body: "Deduplicates repeated facts and catches contradictions." },
-              { icon: Star, title: "Rank", body: "Scores by frequency, recency, objective facts, and manual strength." },
-              { icon: Send, title: "Propagate", body: "Writes approved changes back to connected platforms." },
-            ].map(({ icon: Icon, title, body }) => (
-              <div key={title} className="rounded-2xl border border-border bg-background p-5">
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-lime/10">
-                  <Icon className="h-4 w-4 text-lime" />
-                </div>
-                <h3 className="text-sm font-semibold tracking-normal">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {stats && (
-          <p className="mx-auto mt-12 max-w-5xl text-center text-xs text-muted-foreground md:text-left">
-            Last sync: {formatLastSync(stats.lastSync)}
+      {/* ── J-Space ── */}
+      <section className="px-8 lg:px-16 py-20" style={{ borderTop: "1px solid #18181B" }}>
+        <div className="max-w-4xl">
+          <p className="text-[13px] font-medium tracking-widest uppercase lp-lime mb-6">
+            J-Space
           </p>
-        )}
+          <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight mb-6 max-w-lg">
+            Working memory for your AI assistant.
+          </h2>
+          <p className="text-[15px] leading-[1.7] max-w-xl mb-4" style={{ color: "#A1A1AA" }}>
+            You have hundreds of memories, but an AI can only hold 20 at once.
+            J-Space picks the most relevant ones based on what you&rsquo;re doing
+            right now. Unused memories decay. New signals promote fresh ones.
+          </p>
+          <p className="text-[14px] leading-[1.7] max-w-xl mb-8" style={{ color: "#71717A" }}>
+            Scoring weights: 40% keyword overlap, 25% category match, 20% recency, 15% co-occurrence.
+            Seven-day half-life. Eviction below 15% loading. You can pin, suppress, or release any memory.
+          </p>
+          <Link
+            href="/j-space"
+            className="inline-flex items-center gap-2 h-11 px-6 rounded-lg text-[14px] font-medium lp-link"
+            style={{ border: "1px solid #27272A" }}
+          >
+            Explore J-Space
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       </section>
-    </main>
+
+      {/* ── Sources ── */}
+      <section className="px-8 lg:px-16 py-16" style={{ borderTop: "1px solid #18181B" }}>
+        <p className="text-[13px] font-medium tracking-widest uppercase lp-lime mb-8">
+          Supported sources
+        </p>
+        <div className="flex flex-wrap gap-3">
+          {[
+            "ChatGPT (export .zip)",
+            "Claude.ai (export .json/.zip)",
+            "Claude Code (live watcher)",
+            "Poke (API push)",
+            "Granola (markdown watcher)",
+          ].map((src) => (
+            <span
+              key={src}
+              className="rounded-full px-5 py-2.5 text-[13px]"
+              style={{ border: "1px solid #27272A", color: "#D4D4D8" }}
+            >
+              {src}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section className="px-8 lg:px-16 pt-20 pb-24" style={{ borderTop: "1px solid #18181B" }}>
+        <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-4">
+          Get started in 30 seconds.
+        </h2>
+        <p className="text-[15px] mb-8 max-w-md" style={{ color: "#A1A1AA" }}>
+          Export your conversations. Drag onto the dashboard. Done.
+        </p>
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-2 h-12 px-7 rounded-lg text-[15px] font-medium"
+          style={{ background: "#84cc16", color: "#09090B" }}
+        >
+          Open Dashboard
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </section>
+    </div>
   );
 }

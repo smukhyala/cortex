@@ -38,6 +38,7 @@ interface WorkspaceQuery {
   boostCategories?: MemoryCategory[];
   suppressCategories?: MemoryCategory[];
   config?: Partial<WorkspaceConfig>;
+  includeCandidates?: boolean;
 }
 
 // ─── Stop words for keyword extraction ──────────────────────────────────────
@@ -454,6 +455,11 @@ export async function computeWorkspace(query: WorkspaceQuery = {}): Promise<Work
   const totalActiveScores = active.reduce((sum, c) => sum + c.totalScore, 0);
   const varianceExplained = totalAllScores > 0 ? totalActiveScores / totalAllScores : 0;
 
+  // 11. Optionally include top 50 background-tier candidates that didn't make it into active
+  const topCandidates = query.includeCandidates
+    ? suppressed.slice(0, 50)
+    : undefined;
+
   return {
     active,
     suppressed,
@@ -463,6 +469,7 @@ export async function computeWorkspace(query: WorkspaceQuery = {}): Promise<Work
     varianceExplained: Math.round(varianceExplained * 1000) / 1000,
     steeringApplied,
     computedAt: now.toISOString(),
+    ...(topCandidates !== undefined ? { candidates: topCandidates } : {}),
   };
 }
 

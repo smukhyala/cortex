@@ -8,6 +8,7 @@ import {
   Home,
   Brain,
   Inbox,
+  Orbit,
   Settings,
 } from "lucide-react";
 import { CortexLogo } from "@/components/features/service-logos";
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/memories", label: "Memories", icon: Brain },
   { href: "/review", label: "Review Queue", icon: Inbox, showBadge: true },
+  { href: "/j-space", label: "J-Space", icon: Orbit },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
 
 vi.mock("@/services/j-lens", () => ({
   getWorkspaceResponse: vi.fn().mockResolvedValue({
@@ -23,22 +24,61 @@ vi.mock("@/services/j-lens", () => ({
   decayAllSlots: vi.fn().mockResolvedValue({ decayed: 0, evicted: 0 }),
 }));
 
+vi.mock("@/services/workspace", () => ({
+  computeWorkspace: vi.fn().mockResolvedValue({
+    active: [],
+    suppressed: [],
+    ignitionCluster: null,
+    capacity: 20,
+    totalCandidates: 0,
+    varianceExplained: 0,
+    steeringApplied: [],
+    computedAt: "2026-07-12T14:00:00Z",
+    candidates: [
+      {
+        memoryId: "mem-bg-1",
+        content: "background candidate",
+        category: "preferences",
+        relevanceScore: 1.5,
+        strengthScore: 0.3,
+        coherenceScore: 0.2,
+        totalScore: 2.0,
+        clusterId: null,
+        pinned: false,
+      },
+    ],
+  }),
+}));
+
 vi.mock("@/lib/seed-workspace", () => ({
   seedWorkspaceSlots: vi.fn().mockResolvedValue(20),
 }));
 
 import { GET, POST } from "@/app/api/workspace/route";
 import { holdInMind, suppress, release } from "@/services/j-lens";
+import { computeWorkspace } from "@/services/workspace";
 
 describe("GET /api/workspace", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("returns workspace state", async () => {
-    const response = await GET();
+    const request = new NextRequest("http://localhost/api/workspace");
+    const response = await GET(request);
     const data = await response.json();
     expect(data.slots).toHaveLength(1);
     expect(data.capacity.used).toBe(1);
     expect(data.capacity.total).toBe(20);
+    expect(data.candidates).toBeUndefined();
+  });
+
+  it("returns candidates when include=candidates", async () => {
+    const request = new NextRequest("http://localhost/api/workspace?include=candidates");
+    const response = await GET(request);
+    const data = await response.json();
+    expect(data.slots).toHaveLength(1);
+    expect(data.candidates).toHaveLength(1);
+    expect(data.candidates[0].memoryId).toBe("mem-bg-1");
+    expect(computeWorkspace).toHaveBeenCalledWith({ includeCandidates: true });
   });
 });
 

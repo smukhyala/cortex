@@ -179,6 +179,8 @@ export interface BatchExtractionResult {
   conversationsWithNoMemories: number;
 }
 
+const EXTRACT_CONCURRENCY = 15;
+
 export async function batchExtractMemories(
   conversations: NormalizedConversation[],
   categoryOverrides?: { slug: string; label: string }[]
@@ -188,32 +190,42 @@ export async function batchExtractMemories(
   let totalOutput = 0;
   let noMemories = 0;
 
-  for (const conv of conversations) {
-    try {
-      const { memories, tokens } = await extractMemories(conv, categoryOverrides);
-      totalInput += tokens.input;
-      totalOutput += tokens.output;
+  // Process in concurrent batches for throughput
+  for (let i = 0; i < conversations.length; i += EXTRACT_CONCURRENCY) {
+    const batch = conversations.slice(i, i + EXTRACT_CONCURRENCY);
+    const batchResults = await Promise.allSettled(
+      batch.map(async (conv) => {
+        const { memories, tokens } = await extractMemories(conv, categoryOverrides);
+        return { conversationId: conv.externalId, memories, tokens };
+      })
+    );
 
-      if (memories.length === 0) {
-        noMemories++;
+    for (let j = 0; j < batchResults.length; j++) {
+      const result = batchResults[j];
+      const conv = batch[j];
+      if (result.status === "fulfilled") {
+        totalInput += result.value.tokens.input;
+        totalOutput += result.value.tokens.output;
+        if (result.value.memories.length === 0) noMemories++;
+        results.push({
+          conversationId: result.value.conversationId,
+          memories: result.value.memories,
+        });
+      } else {
+        console.error(
+          `Failed to extract memories from conversation ${conv.externalId}:`,
+          result.reason
+        );
+        results.push({ conversationId: conv.externalId, memories: [] });
       }
+    }
 
-      results.push({
-        conversationId: conv.externalId,
-        memories,
-      });
-    } catch (error) {
-      console.error(
-        `Failed to extract memories from conversation ${conv.externalId}:`,
-        error
-      );
-      // Continue with other conversations rather than failing the whole batch
-      results.push({
-        conversationId: conv.externalId,
-        memories: [],
-      });
+    if (i + EXTRACT_CONCURRENCY < conversations.length) {
+      console.log(`[extract] ${i + batch.length}/${conversations.length} conversations processed`);
     }
   }
+
+  console.log(`[extract] Done: ${results.length} conversations, ${totalInput + totalOutput} tokens`);
 
   return {
     results,

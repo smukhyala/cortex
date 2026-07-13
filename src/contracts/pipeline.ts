@@ -32,7 +32,7 @@ export function createExtractedMemorySchema(
   return z.object({
     content: z.string(),
     subject: z.string().default("user"),
-    category: z.enum([first, ...rest] as [string, ...string[]]),
+    category: z.enum([first, ...rest] as [string, ...string[]]).catch(first),
     confidence: z.number().min(0).max(1),
     verbatimQuote: z.string(),
     temporality: TemporalitySchema,

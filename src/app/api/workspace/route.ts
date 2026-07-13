@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   getWorkspaceResponse,
   holdInMind,
@@ -6,12 +6,27 @@ import {
   release,
   decayAllSlots,
 } from "@/services/j-lens";
+import { computeWorkspace } from "@/services/workspace";
 import { seedWorkspaceSlots } from "@/lib/seed-workspace";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     await decayAllSlots();
     const workspace = await getWorkspaceResponse();
+
+    const include = request.nextUrl.searchParams.get("include");
+    const query = request.nextUrl.searchParams.get("query") ?? undefined;
+    const focus = request.nextUrl.searchParams.get("focus") ?? undefined;
+
+    if (include === "candidates" || query || focus) {
+      const workspaceState = await computeWorkspace({
+        question: query,
+        focusModeId: focus,
+        includeCandidates: include === "candidates",
+      });
+      return NextResponse.json(workspaceState);
+    }
+
     return NextResponse.json(workspace);
   } catch (error) {
     return NextResponse.json(

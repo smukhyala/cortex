@@ -170,6 +170,7 @@ export const WorkspaceStateSchema = z.object({
   varianceExplained: z.number(),
   steeringApplied: z.array(z.string()),
   computedAt: z.string(),
+  candidates: z.array(WorkspaceCandidateSchema).optional(),
 });
 
 export type WorkspaceState = z.infer<typeof WorkspaceStateSchema>;

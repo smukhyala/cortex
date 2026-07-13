@@ -15,8 +15,19 @@ const UPLOAD_DIR = path.resolve(process.cwd(), "data/uploads");
  * overriding the client-side filename-based guess.
  */
 function detectSourceType(buffer: Buffer, clientGuess: string): string {
-  // ZIP files are always chatgpt_export (ChatGPT exports as .zip)
+  // ZIP files: peek inside to distinguish ChatGPT vs Claude.ai exports
   if (buffer[0] === 0x50 && buffer[1] === 0x4b) {
+    try {
+      const AdmZip = require("adm-zip");
+      const zip = new AdmZip(buffer);
+      const entries = zip.getEntries().map((e: { entryName: string }) => e.entryName);
+      // Claude.ai ZIPs contain users.json + conversations.json (no sharding)
+      if (entries.includes("users.json") && entries.includes("conversations.json")) {
+        return "claude_export";
+      }
+    } catch {
+      // Fall through to chatgpt_export
+    }
     return "chatgpt_export";
   }
 

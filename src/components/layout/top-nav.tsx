@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/memories", label: "Memories" },
+  { href: "/j-space", label: "J-Space" },
   { href: "/review", label: "Review" },
   { href: "/settings", label: "Settings" },
 ];
