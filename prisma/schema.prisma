@@ -54,6 +54,8 @@ model Memory {
   lastReferencedAt DateTime @default(now())
   manuallyStrong Boolean   @default(false)
   pinned         Boolean   @default(false)
+  tier           String    @default("background") // background | workspace
+  suppressedUntil DateTime?
 
   sourceId       String
   source         Source    @relation(fields: [sourceId], references: [id])
