@@ -8,6 +8,7 @@ import type { SourceType, SyncTrigger } from "@/contracts/source";
 import { getCategories } from "@/lib/categories";
 import { notifyMemoryChange } from "@/services/memory-change";
 import { isLikelyTechnicalMemory } from "@/lib/memory-quality";
+import { logSignal, scoreBatch } from "@/services/j-lens";
 
 const AUTO_APPROVE_NEW_MEMORY_SOURCES = new Set<SourceType>([
   "claude_code",
@@ -207,6 +208,26 @@ export async function runPipeline(input: {
         action: "sync_auto_update",
         count: commitResult.autoApproved + commitResult.autoSuperseded + commitResult.referencesUpdated,
       });
+    }
+
+    // ── J-Lens: log activity signal and run batch scoring ─────────────────
+    try {
+      const extractedCategories = [...new Set(allMemories.map((m) => m.category))];
+      const extractedKeywords = allMemories
+        .flatMap((m) => m.content.toLowerCase().split(/\s+/).filter((w) => w.length >= 4))
+        .slice(0, 20);
+
+      await logSignal({
+        type: "conversation_sync",
+        keywords: [...new Set(extractedKeywords)],
+        categories: extractedCategories,
+        sourceType: input.sourceType,
+      });
+
+      await scoreBatch();
+    } catch (jlensError) {
+      // J-Lens failure is non-fatal — workspace stays stale, memories are safe
+      console.warn("J-Lens batch failed (non-fatal):", jlensError);
     }
 
     return {
