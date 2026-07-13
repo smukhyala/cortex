@@ -1,6 +1,76 @@
 import { z } from "zod";
 import { MemoryCategorySchema } from "@/contracts/memory";
 
+// ─── J-Space Enums ───────────────────────────────────────────────────────────
+
+export const MemoryTierSchema = z.enum(["background", "workspace"]);
+export type MemoryTier = z.infer<typeof MemoryTierSchema>;
+
+export const SourceSignalSchema = z.enum(["activity", "explicit", "query", "sync"]);
+export type SourceSignal = z.infer<typeof SourceSignalSchema>;
+
+// ─── J-Lens Configuration ────────────────────────────────────────────────────
+
+export const JLensConfigSchema = z.object({
+  capacity: z.number().int().min(10).max(30).default(20),
+  halfLifeDays: z.number().min(1).max(30).default(7),
+  evictionThreshold: z.number().min(0).max(0.5).default(0.15),
+  reinforcementBoost: z.number().min(0.05).max(0.5).default(0.2),
+  weights: z.object({
+    keywordOverlap: z.number().default(0.40),
+    categoryMatch: z.number().default(0.25),
+    recencyBoost: z.number().default(0.20),
+    coOccurrence: z.number().default(0.15),
+  }).default({}),
+});
+
+export type JLensConfig = z.infer<typeof JLensConfigSchema>;
+
+export const DEFAULT_JLENS_CONFIG: JLensConfig = JLensConfigSchema.parse({});
+
+// ─── Workspace Slot (MCP response shape) ─────────────────────────────────────
+
+export const WorkspaceSlotResponseSchema = z.object({
+  position: z.number().int().min(0).max(29),
+  memoryId: z.string(),
+  conceptLabel: z.string().nullable().optional(),
+  content: z.string(),
+  category: z.string(),
+  loading: z.number().min(0).max(1),
+  pinned: z.boolean(),
+  sourceSignal: z.string(),
+  activatedAt: z.string(),
+  loadedAt: z.string(),
+});
+
+export type WorkspaceSlotResponse = z.infer<typeof WorkspaceSlotResponseSchema>;
+
+// ─── Activity Signal ─────────────────────────────────────────────────────────
+
+export const ActivitySignalSchema = z.object({
+  type: z.enum(["mcp_query", "conversation_sync", "file_change", "manual"]),
+  keywords: z.array(z.string()),
+  categories: z.array(z.string()),
+  sourceType: z.string().optional(),
+});
+
+export type ActivitySignalInput = z.infer<typeof ActivitySignalSchema>;
+
+// ─── Workspace Response (full MCP response) ──────────────────────────────────
+
+export const WorkspaceResponseSchema = z.object({
+  slots: z.array(WorkspaceSlotResponseSchema),
+  capacity: z.object({
+    used: z.number(),
+    total: z.number(),
+  }),
+  lastUpdated: z.string(),
+});
+
+export type WorkspaceResponse = z.infer<typeof WorkspaceResponseSchema>;
+
+// ─── Legacy types (kept for existing workspace service) ──────────────────────
+
 // ─── Configuration ──────────────────────────────────────────────────────────
 
 export const WorkspaceConfigSchema = z.object({
