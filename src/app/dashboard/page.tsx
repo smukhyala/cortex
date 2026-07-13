@@ -161,7 +161,7 @@ export default function DashboardPage() {
       </section>
 
       {/* ── Workspace Dashboard ── */}
-      {workspace && occupiedSlots.length > 0 && (
+      {workspace && (
         <section>
           <p className="maze-eyebrow mb-6" data-animate>Global Workspace</p>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

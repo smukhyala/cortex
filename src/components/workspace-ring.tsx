@@ -39,14 +39,15 @@ export function WorkspaceRing({ slots, capacity, onSlotClick }: WorkspaceRingPro
         />
 
         {/* Slot circles */}
-        {slots.map((slot, i) => {
+        {Array.from({ length: total }, (_, i) => {
           const angle = (i / total) * Math.PI * 2 - Math.PI / 2;
           const x = CENTER + RING_RADIUS * Math.cos(angle);
           const y = CENTER + RING_RADIUS * Math.sin(angle);
-          const isOccupied = slot.memoryId !== null;
+          const slot = slots.find((s) => s.position === i);
+          const isOccupied = !!slot;
           const isHovered = hoveredIndex === i;
 
-          if (isOccupied) {
+          if (isOccupied && slot) {
             const radius = 8 + slot.loading * 12;
             const fill = slot.pinned ? "#f59e0b" : "#84cc16";
             const hoverRadius = isHovered ? radius + 3 : radius;
@@ -94,8 +95,6 @@ export function WorkspaceRing({ slots, capacity, onSlotClick }: WorkspaceRingPro
             />
           );
         })}
-
-        {/* Center text */}
         <text
           x={CENTER}
           y={CENTER - 6}

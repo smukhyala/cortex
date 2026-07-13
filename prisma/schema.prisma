@@ -69,9 +69,6 @@ model Memory {
 
   project        String?
 
-  tier            String   @default("background") // background | workspace
-  suppressedUntil DateTime?
-
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
