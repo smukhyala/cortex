@@ -105,3 +105,78 @@ export const WorkspaceStateSchema = z.object({
 });
 
 export type WorkspaceState = z.infer<typeof WorkspaceStateSchema>;
+
+// ─── J-Space: Memory Tiers & Source Signals ────────────────────────────────
+
+export const MemoryTier = z.enum(["background", "workspace"]);
+export type MemoryTier = z.infer<typeof MemoryTier>;
+
+export const SourceSignal = z.enum(["automatic", "explicit", "reinforced"]);
+export type SourceSignal = z.infer<typeof SourceSignal>;
+
+// ─── J-Space: Activity Signal Input ────────────────────────────────────────
+
+export const ActivitySignalInput = z.object({
+  type: z.enum(["query", "conversation", "navigation", "tool_use"]),
+  keywords: z.array(z.string()),
+  categories: z.array(z.string()),
+  sourceType: z.enum(["mcp", "api", "watcher"]).default("mcp"),
+});
+
+export type ActivitySignalInput = z.infer<typeof ActivitySignalInput>;
+
+// ─── J-Space: Workspace Slot Response ──────────────────────────────────────
+
+export const WorkspaceSlotResponse = z.object({
+  position: z.number(),
+  memoryId: z.string(),
+  conceptLabel: z.string().nullable(),
+  content: z.string(),
+  category: z.string(),
+  loading: z.number(),
+  pinned: z.boolean(),
+  sourceSignal: SourceSignal,
+  activatedAt: z.string(),
+  loadedAt: z.string(),
+});
+
+export type WorkspaceSlotResponse = z.infer<typeof WorkspaceSlotResponse>;
+
+// ─── J-Space: Full Workspace Response ──────────────────────────────────────
+
+export const WorkspaceResponse = z.object({
+  slots: z.array(WorkspaceSlotResponse),
+  capacity: z.number(),
+  occupied: z.number(),
+  lastUpdated: z.string(),
+});
+
+export type WorkspaceResponse = z.infer<typeof WorkspaceResponse>;
+
+// ─── J-Lens: Scoring Configuration ────────────────────────────────────────
+
+export const JLensConfigSchema = z.object({
+  /** Weight for keyword match signal */
+  keywordWeight: z.number().min(0).max(1).default(0.4),
+  /** Weight for category match signal */
+  categoryWeight: z.number().min(0).max(1).default(0.3),
+  /** Weight for recency signal */
+  recencyWeight: z.number().min(0).max(1).default(0.2),
+  /** Weight for confidence signal */
+  confidenceWeight: z.number().min(0).max(1).default(0.1),
+  /** Loading threshold below which a slot is considered weak/evictable */
+  evictionThreshold: z.number().min(0).max(1).default(0.15),
+  /** Default decay rate for new slots */
+  defaultDecayRate: z.number().min(0).max(1).default(0.05),
+});
+
+export type JLensConfig = z.infer<typeof JLensConfigSchema>;
+
+export const DEFAULT_JLENS_CONFIG: JLensConfig = {
+  keywordWeight: 0.4,
+  categoryWeight: 0.3,
+  recencyWeight: 0.2,
+  confidenceWeight: 0.1,
+  evictionThreshold: 0.15,
+  defaultDecayRate: 0.05,
+};
