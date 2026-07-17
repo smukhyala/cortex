@@ -422,7 +422,7 @@ export function createCortexMcpServer(options: { defaultOrigin: DefaultOrigin })
         const workspace = await getWorkspaceResponse();
 
         const lines: string[] = [];
-        lines.push(`Workspace: ${workspace.occupied}/${workspace.capacity} slots occupied`);
+        lines.push(`Workspace: ${workspace.capacity.used}/${workspace.capacity.total} slots occupied`);
         if (decayResult.evicted > 0) {
           lines.push(`(${decayResult.decayed} decayed, ${decayResult.evicted} evicted this cycle)`);
         }
@@ -434,7 +434,8 @@ export function createCortexMcpServer(options: { defaultOrigin: DefaultOrigin })
           for (const slot of workspace.slots) {
             const pin = slot.pinned ? " [pinned]" : "";
             const label = slot.conceptLabel ? ` (${slot.conceptLabel})` : "";
-            lines.push(`- Slot ${slot.position}: ${slot.content}${label} — loading: ${Math.round(slot.loading * 100)}%${pin}`);
+            const content = slot.memories.length > 0 ? slot.memories[0] : "(empty)";
+            lines.push(`- Slot ${slot.position}: ${content}${label} — loading: ${Math.round(slot.loading * 100)}%${pin}`);
           }
         }
 

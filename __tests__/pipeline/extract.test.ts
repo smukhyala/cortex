@@ -189,7 +189,7 @@ describe("ExtractedMemorySchema", () => {
     expect(ExtractedMemorySchema.safeParse(valid).success).toBe(true);
   });
 
-  it("rejects invalid category", () => {
+  it("falls back invalid category to first category via .catch()", () => {
     const invalid = {
       content: "Test",
       subject: "user",
@@ -200,7 +200,11 @@ describe("ExtractedMemorySchema", () => {
       sensitive: false,
       isCorrection: false,
     };
-    expect(ExtractedMemorySchema.safeParse(invalid).success).toBe(false);
+    const result = ExtractedMemorySchema.safeParse(invalid);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.category).toBe("identity");
+    }
   });
 
   it("rejects confidence out of range", () => {

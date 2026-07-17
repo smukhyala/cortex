@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ArrowRight } from "lucide-react";
 
 interface MemoryItem {
@@ -28,6 +28,157 @@ const CAT_COLORS: Record<string, string> = {
   workflows: "#5ee8c4",
   temporary: "#888",
 };
+
+/* ── Hero Graphic ─────────────────────────────────────────────────────────── */
+
+const TOOL_NODES = [
+  { label: "ChatGPT", angle: -90, color: "#10a37f" },
+  { label: "Claude", angle: 30, color: "#d4a574" },
+  { label: "Poke", angle: 150, color: "#8b8fff" },
+];
+
+function HeroGraphic({ memories }: { memories: MemoryItem[] }) {
+  const cx = 220;
+  const cy = 220;
+  const toolRadius = 170;
+  const memRadius = 105;
+
+  // Deterministic positions for memory dots based on actual data
+  const memNodes = useMemo(() => {
+    const items = memories.length > 0 ? memories.slice(0, 12) : Array.from({ length: 12 }, (_, i) => ({
+      id: `placeholder-${i}`,
+      content: "",
+      category: Object.keys(CAT_COLORS)[i % Object.keys(CAT_COLORS).length],
+    }));
+    return items.map((mem, i) => {
+      const angle = (i / items.length) * Math.PI * 2 - Math.PI / 2;
+      const r = memRadius + (i % 3 === 0 ? -14 : i % 3 === 1 ? 8 : 0);
+      return {
+        x: Math.round((cx + Math.cos(angle) * r) * 100) / 100,
+        y: Math.round((cy + Math.sin(angle) * r) * 100) / 100,
+        color: CAT_COLORS[mem.category] ?? "#888",
+        content: mem.content,
+      };
+    });
+  }, [memories]);
+
+  const tools = TOOL_NODES.map((t) => {
+    const rad = (t.angle * Math.PI) / 180;
+    return {
+      ...t,
+      x: Math.round((cx + Math.cos(rad) * toolRadius) * 100) / 100,
+      y: Math.round((cy + Math.sin(rad) * toolRadius) * 100) / 100,
+    };
+  });
+
+  return (
+    <div className="relative w-full max-w-[440px] aspect-square">
+      {/* Glow backdrop */}
+      <div
+        className="absolute inset-0 rounded-full opacity-20 blur-[80px]"
+        style={{ background: "radial-gradient(circle, #84cc16 0%, transparent 70%)" }}
+      />
+      <svg viewBox="0 0 440 440" className="w-full h-full" style={{ filter: "drop-shadow(0 0 30px rgba(132,204,22,0.08))" }}>
+        <defs>
+          <radialGradient id="hero-glow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#84cc16" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="#84cc16" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        {/* Orbital rings */}
+        <circle cx={cx} cy={cy} r={memRadius} fill="none" stroke="#27272A" strokeWidth="0.5" strokeDasharray="3 6" />
+        <circle cx={cx} cy={cy} r={toolRadius} fill="none" stroke="#27272A" strokeWidth="0.5" strokeDasharray="3 6" />
+
+        {/* Connections from tool nodes to center */}
+        {tools.map((t) => (
+          <line
+            key={t.label}
+            x1={cx} y1={cy} x2={t.x} y2={t.y}
+            stroke={t.color}
+            strokeWidth="0.8"
+            strokeOpacity="0.25"
+          />
+        ))}
+
+        {/* Connections from memory nodes to center */}
+        {memNodes.map((m, i) => (
+          <line
+            key={i}
+            x1={cx} y1={cy} x2={m.x} y2={m.y}
+            stroke={m.color}
+            strokeWidth="0.5"
+            strokeOpacity="0.15"
+          />
+        ))}
+
+        {/* Connections between adjacent memory nodes */}
+        {memNodes.map((m, i) => {
+          const next = memNodes[(i + 1) % memNodes.length];
+          return (
+            <line
+              key={`edge-${i}`}
+              x1={m.x} y1={m.y} x2={next.x} y2={next.y}
+              stroke="#27272A"
+              strokeWidth="0.7"
+            />
+          );
+        })}
+
+        {/* Center hub */}
+        <circle cx={cx} cy={cy} r={28} fill="url(#hero-glow)" stroke="#84cc16" strokeWidth="1.2" />
+        <circle cx={cx} cy={cy} r={4} fill="#84cc16" />
+        {/* Pulsing ring */}
+        <circle cx={cx} cy={cy} r={28} fill="none" stroke="#84cc16" strokeWidth="0.6" strokeOpacity="0.4">
+          <animate attributeName="r" values="28;38;28" dur="3s" repeatCount="indefinite" />
+          <animate attributeName="stroke-opacity" values="0.4;0;0.4" dur="3s" repeatCount="indefinite" />
+        </circle>
+
+        {/* Memory nodes */}
+        {memNodes.map((m, i) => (
+          <g key={i}>
+            <circle cx={m.x} cy={m.y} r={4.5} fill={m.color} fillOpacity="0.7" />
+            <circle cx={m.x} cy={m.y} r={4.5} fill="none" stroke={m.color} strokeWidth="0.5" strokeOpacity="0.3">
+              <animate attributeName="r" values="4.5;7;4.5" dur={`${2.5 + (i % 3) * 0.7}s`} repeatCount="indefinite" />
+              <animate attributeName="stroke-opacity" values="0.3;0;0.3" dur={`${2.5 + (i % 3) * 0.7}s`} repeatCount="indefinite" />
+            </circle>
+          </g>
+        ))}
+
+        {/* Tool nodes */}
+        {tools.map((t) => (
+          <g key={t.label}>
+            <circle cx={t.x} cy={t.y} r={22} fill="#111113" stroke={t.color} strokeWidth="1.2" />
+            <text
+              x={t.x} y={t.y + 1}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill={t.color}
+              fontSize="9"
+              fontWeight="600"
+              fontFamily="var(--font-jakarta), system-ui, sans-serif"
+            >
+              {t.label}
+            </text>
+          </g>
+        ))}
+
+        {/* Center label */}
+        <text
+          x={cx} y={cy + 46}
+          textAnchor="middle"
+          fill="#84cc16"
+          fontSize="10"
+          fontWeight="600"
+          letterSpacing="0.12em"
+          fontFamily="var(--font-jakarta), system-ui, sans-serif"
+        >
+          CORTEX
+        </text>
+      </svg>
+    </div>
+  );
+}
 
 export default function LandingPage() {
   const [memories, setMemories] = useState<MemoryItem[]>([]);
@@ -97,37 +248,47 @@ export default function LandingPage() {
 
       {/* ── Hero ── */}
       <section className="px-8 lg:px-16 pt-24 pb-20">
-        <p className="text-[13px] font-medium tracking-widest uppercase lp-lime mb-6">
-          Personal AI Memory
-        </p>
-        <h1
-          className="font-semibold leading-[1.05] tracking-tight max-w-4xl"
-          style={{ fontSize: "clamp(2.5rem, 6vw, 5rem)" }}
-        >
-          Your AI tools forget everything.
-          <br />
-          <span className="lp-muted">Cortex doesn&rsquo;t.</span>
-        </h1>
-        <p className="mt-8 text-[17px] leading-relaxed max-w-xl" style={{ color: "#A1A1AA" }}>
-          Extract memories from ChatGPT, Claude, and Poke conversations.
-          Deduplicate. Resolve conflicts. Sync back to every tool.
-        </p>
-        <div className="flex gap-4 mt-10">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 h-12 px-7 rounded-lg text-[15px] font-medium"
-            style={{ background: "#84cc16", color: "#09090B" }}
-          >
-            Open Dashboard
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-          <Link
-            href="/j-space"
-            className="inline-flex items-center gap-2 h-12 px-7 rounded-lg text-[15px] font-medium lp-link"
-            style={{ border: "1px solid #27272A" }}
-          >
-            How it works
-          </Link>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          {/* Left — copy */}
+          <div>
+            <p className="text-[13px] font-medium tracking-widest uppercase lp-lime mb-6">
+              Personal AI Memory
+            </p>
+            <h1
+              className="font-semibold leading-[1.05] tracking-tight"
+              style={{ fontSize: "clamp(2.5rem, 6vw, 5rem)" }}
+            >
+              Your AI tools forget everything.
+              <br />
+              <span className="lp-muted">Cortex doesn&rsquo;t.</span>
+            </h1>
+            <p className="mt-8 text-[17px] leading-relaxed max-w-xl" style={{ color: "#A1A1AA" }}>
+              Extract memories from ChatGPT, Claude, and Poke conversations.
+              Deduplicate. Resolve conflicts. Sync back to every tool.
+            </p>
+            <div className="flex gap-4 mt-10">
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 h-12 px-7 rounded-lg text-[15px] font-medium"
+                style={{ background: "#84cc16", color: "#09090B" }}
+              >
+                Open Dashboard
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/j-space"
+                className="inline-flex items-center gap-2 h-12 px-7 rounded-lg text-[15px] font-medium lp-link"
+                style={{ border: "1px solid #27272A" }}
+              >
+                How it works
+              </Link>
+            </div>
+          </div>
+
+          {/* Right — graphic */}
+          <div className="hidden lg:flex items-center justify-center">
+            <HeroGraphic memories={memories} />
+          </div>
         </div>
       </section>
 

@@ -75,7 +75,7 @@ describe("GET /api/workspace", () => {
     const request = new NextRequest("http://localhost/api/workspace?include=candidates");
     const response = await GET(request);
     const data = await response.json();
-    expect(data.slots).toHaveLength(1);
+    expect(data.active).toHaveLength(0);
     expect(data.candidates).toHaveLength(1);
     expect(data.candidates[0].memoryId).toBe("mem-bg-1");
     expect(computeWorkspace).toHaveBeenCalledWith({ includeCandidates: true });

@@ -6,7 +6,7 @@ import { MemoryCategorySchema } from "@/contracts/memory";
 export const MemoryTierSchema = z.enum(["background", "workspace"]);
 export type MemoryTier = z.infer<typeof MemoryTierSchema>;
 
-export const SourceSignalSchema = z.enum(["activity", "explicit", "query", "sync"]);
+export const SourceSignalSchema = z.enum(["activity", "explicit", "query", "sync", "ignition", "manual"]);
 export type SourceSignal = z.infer<typeof SourceSignalSchema>;
 
 // ─── J-Lens Configuration ────────────────────────────────────────────────────
@@ -21,7 +21,12 @@ export const JLensConfigSchema = z.object({
     categoryMatch: z.number().default(0.25),
     recencyBoost: z.number().default(0.20),
     coOccurrence: z.number().default(0.15),
-  }).default({}),
+  }).default({
+    keywordOverlap: 0.40,
+    categoryMatch: 0.25,
+    recencyBoost: 0.20,
+    coOccurrence: 0.15,
+  }),
 });
 
 export type JLensConfig = z.infer<typeof JLensConfigSchema>;
@@ -37,7 +42,7 @@ export const WorkspaceSlotSchema = z.object({
   loading: z.number().min(0).max(1),
   pinned: z.boolean(),
   sourceSignal: SourceSignalSchema,
-  activatedAt: z.string(),
+  activatedAt: z.string().nullable(),
   memories: z.array(z.string()),
 });
 
