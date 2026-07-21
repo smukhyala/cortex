@@ -26,6 +26,20 @@ const CATEGORY_DOT_COLORS: Record<string, string> = {
   temporary: "bg-neutral-400",
 };
 
+/* SVG fill colors matching the Tailwind classes above (for the SlotRing) */
+const CATEGORY_SVG_COLORS: Record<string, string> = {
+  identity: "#3b82f6",
+  education_career: "#a855f7",
+  projects: "#10b981",
+  research: "#eab308",
+  preferences: "#f97316",
+  goals: "#ec4899",
+  relationships: "#6366f1",
+  writing_voice: "#06b6d4",
+  workflows: "#14b8a6",
+  temporary: "#a3a3a3",
+};
+
 /* ── Slot ring — circular workspace visualization ────────────────────── */
 
 function SlotRing({
@@ -106,6 +120,7 @@ function SlotRing({
 
         const loading = Math.min(1, Math.max(0, mem.totalScore / 10));
         const nodeRadius = 6 + loading * 8;
+        const catColor = CATEGORY_SVG_COLORS[mem.category] ?? "#a3a3a3";
 
         return (
           <g
@@ -139,14 +154,16 @@ function SlotRing({
               </circle>
             )}
 
-            {/* Node */}
+            {/* Node — colored by category */}
             <circle
               cx={x}
               cy={y}
               r={nodeRadius}
-              fill={isIgnited ? "var(--lime)" : "var(--card)"}
-              stroke={isIgnited ? "var(--lime)" : "var(--border)"}
+              fill={isIgnited ? "var(--lime)" : catColor}
+              fillOpacity={isIgnited ? 1 : 0.85}
+              stroke={isIgnited ? "var(--lime)" : catColor}
               strokeWidth="1.5"
+              strokeOpacity={isIgnited ? 1 : 0.4}
               className="transition-all duration-200 hover:stroke-lime"
             />
 
@@ -311,10 +328,13 @@ export default function JSpacePage() {
             <p className="maze-eyebrow mb-3 text-lime">J-Space</p>
             <h1>Your AI&rsquo;s working memory</h1>
             <p className="maze-body mt-3 max-w-xl">
-              Cortex stores {workspace.totalCandidates} memories about you, but an AI assistant
-              can&rsquo;t use them all at once. J-Space is the system that decides which {workspace.capacity} memories
-              are &ldquo;top of mind&rdquo; right now &mdash; like your brain&rsquo;s working memory, it keeps
-              the most relevant facts loaded and lets the rest fade into long-term storage.
+              Anthropic&rsquo;s 2026 paper{" "}
+              <em>&ldquo;Verbalizable Representations Form a Global Workspace in Language Models&rdquo;</em>{" "}
+              found that LLMs maintain a privileged subspace &mdash; the <strong>J-space</strong> (Jacobian
+              space) &mdash; where only ~25 concepts are meaningfully active at a time, despite the
+              model&rsquo;s vast capacity. Cortex applies this principle: out of {workspace.totalCandidates} stored
+              memories, only {workspace.capacity} occupy the workspace at once &mdash; selected, scored, and
+              kept loaded for your AI assistants to use.
             </p>
           </div>
         </div>
@@ -330,19 +350,35 @@ export default function JSpacePage() {
         <PipelineExplainer />
       </section>
 
-      {/* ── Two-Tier Architecture ── */}
+      {/* ── Three-Region Architecture ── */}
       <section>
-        <p className="maze-eyebrow mb-2" data-animate>Two tiers</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-animate="1">
+        <p className="maze-eyebrow mb-2" data-animate>Architecture</p>
+        <p className="text-[13px] text-muted-foreground mb-5 max-w-xl" data-animate>
+          The paper identifies three functional regions in an LLM &mdash; sensory (input parsing),
+          workspace (abstract reasoning), and motor (output generation). Cortex mirrors
+          this with three tiers for your personal memories:
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4" data-animate="1">
+          <div className="maze-card p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-3 w-3 rounded-full bg-stone-400" />
+              <p className="text-sm font-medium">Sensory (ingestion)</p>
+            </div>
+            <p className="text-[12px] text-muted-foreground leading-relaxed">
+              Raw conversations arrive from ChatGPT, Claude, and Poke. The pipeline
+              parses and extracts atomic facts &mdash; like an LLM&rsquo;s early layers parsing tokens.
+            </p>
+          </div>
           <div className="maze-card p-5">
             <div className="flex items-center gap-2 mb-2">
               <div className="h-3 w-3 rounded-full bg-lime" />
-              <p className="text-sm font-medium">Workspace (active tier)</p>
+              <p className="text-sm font-medium">Workspace (active)</p>
             </div>
             <p className="text-[12px] text-muted-foreground leading-relaxed">
               {workspace.active.length} of your {workspace.capacity} slots are filled. These are the
-              memories your AI assistants see right now when they answer questions about you.
-              They&rsquo;re scored, ranked, and continuously updated.
+              memories your AI assistants see right now &mdash; scored, ranked, and available
+              for report and reasoning, just as the paper&rsquo;s workspace holds the concepts
+              available for flexible inference.
             </p>
           </div>
           <div className="maze-card p-5">
@@ -352,8 +388,7 @@ export default function JSpacePage() {
             </div>
             <p className="text-[12px] text-muted-foreground leading-relaxed">
               {workspace.totalCandidates - workspace.active.length} memories sit in background storage.
-              They&rsquo;re not forgotten &mdash; when a signal matches them (you mention a topic,
-              a sync brings related context), they get scored and can be promoted into the workspace.
+              When a signal matches them, they get scored and can be promoted into the workspace.
             </p>
           </div>
         </div>
@@ -383,7 +418,6 @@ export default function JSpacePage() {
         {/* Stats bar */}
         <div className="flex items-center gap-6 mt-3 text-[11px] text-muted-foreground" data-animate="2">
           <span>{workspace.active.length}/{workspace.capacity} active slots</span>
-          <span>{Math.round(workspace.varianceExplained * 100)}% signal captured</span>
           <span>{workspace.totalCandidates} total memories</span>
         </div>
       </section>
@@ -392,8 +426,10 @@ export default function JSpacePage() {
       <section>
         <p className="maze-eyebrow mb-2" data-animate>How memories are scored</p>
         <p className="text-[13px] text-muted-foreground mb-5 max-w-xl" data-animate>
-          Each memory gets a composite score from three dimensions. The colored bar next to each
-          memory shows the balance. Click any memory to see the full breakdown.
+          In the paper, <strong>workspace loading</strong> is measured as cosine similarity between an
+          activation and a concept&rsquo;s lens vector &mdash; it predicts how successfully a concept
+          can be manipulated. Cortex adapts this with three scoring dimensions. The colored bar
+          next to each memory shows the balance. Click any memory to see the full breakdown.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" data-animate="1">
           <div className="maze-card p-4">
@@ -402,8 +438,9 @@ export default function JSpacePage() {
               <p className="text-[12px] font-medium">Relevance</p>
             </div>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Does this memory match recent signals? Scored by keyword overlap with recent
-              conversations, category match, and how recently the memory was referenced.
+              Analogous to the paper&rsquo;s loading signal: does this memory align with
+              recent activity? Scored by keyword overlap with recent conversations,
+              category match, and recency of reference.
             </p>
           </div>
           <div className="maze-card p-4">
@@ -422,9 +459,9 @@ export default function JSpacePage() {
               <p className="text-[12px] font-medium">Coherence</p>
             </div>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Does this memory fit with other active memories? Memories in larger clusters
-              get a coherence boost &mdash; they form a &ldquo;topic constellation&rdquo; that&rsquo;s
-              more useful together than apart.
+              Does this memory fit with other active memories? The paper shows workspace
+              representations are &ldquo;flexibly generalizable&rdquo; &mdash; concepts that co-occur
+              across many contexts get a coherence boost.
             </p>
           </div>
         </div>
@@ -434,10 +471,12 @@ export default function JSpacePage() {
       <section>
         <p className="maze-eyebrow mb-2" data-animate>Clusters &amp; ignition</p>
         <p className="text-[13px] text-muted-foreground mb-5 max-w-xl" data-animate>
-          Memories that share keywords or categories are grouped into <strong>coherence clusters</strong>.
-          When a cluster has 3+ members with high combined scores, it <strong>ignites</strong> &mdash;
-          the cluster gets boosted and unrelated memories get suppressed, focusing the workspace
-          on a single topic. Think of it as your AI &ldquo;locking in&rdquo; on what matters most right now.
+          The paper describes <strong>ignition</strong> as an all-or-none amplification &mdash; when
+          evidence for a concept crosses a threshold, the workspace commits to it sharply rather
+          than gradually, with bimodal outcomes. Cortex implements this as <strong>cluster ignition</strong>:
+          when related memories form a group with 3+ members and high combined scores, the cluster
+          ignites &mdash; boosting those memories and suppressing unrelated ones, focusing the workspace
+          on a single topic.
         </p>
 
         {workspace.ignitionCluster ? (
@@ -509,10 +548,11 @@ export default function JSpacePage() {
       <section>
         <p className="maze-eyebrow mb-2" data-animate>Decay &amp; modulation</p>
         <p className="text-[13px] text-muted-foreground mb-5 max-w-xl" data-animate>
-          Memories don&rsquo;t stay in the workspace forever. Each unpinned memory decays
-          exponentially with a <strong>7-day half-life</strong> &mdash; if nothing reinforces it (a
-          conversation mentions it, you query it), its &ldquo;loading&rdquo; drops until it falls
-          below 15% and gets evicted back to background storage. You can override this:
+          The paper shows that workspace contents are selective &mdash; only a small subset of
+          representations occupy the workspace at any time. Cortex enforces this with
+          <strong> temporal decay</strong>: each unpinned memory&rsquo;s loading drops exponentially
+          (7-day half-life). If nothing reinforces it, loading falls below 15% and it gets
+          evicted back to background storage. You can override this:
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4" data-animate="1">
           <div className="maze-card p-4">
@@ -548,6 +588,16 @@ export default function JSpacePage() {
           <span style={{ color: "oklch(0.58 0.18 260)" }}>strength</span>,{" "}
           <span style={{ color: "oklch(0.55 0.17 300)" }}>coherence</span>. Click to inspect or modulate.
         </p>
+
+        {/* Category color key */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-4 text-[11px] text-muted-foreground" data-animate>
+          {Object.entries(CATEGORY_DOT_COLORS).map(([cat, colorClass]) => (
+            <span key={cat} className="flex items-center gap-1.5">
+              <span className={`h-2 w-2 rounded-full ${colorClass} shrink-0`} />
+              {(CATEGORY_LABELS[cat as MemoryCategory] ?? cat).replace(/_/g, " ")}
+            </span>
+          ))}
+        </div>
         <div className="grid gap-2" data-animate="1">
           {workspace.active.map((mem) => {
             const dotColor = CATEGORY_DOT_COLORS[mem.category] ?? "bg-neutral-400";

@@ -535,43 +535,6 @@ export function OrbitalView({
         </div>
       )}
 
-      {/* Legend — bottom-right corner */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 8,
-          right: 12,
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "4px 10px",
-          maxWidth: 320,
-          justifyContent: "flex-end",
-        }}
-      >
-        {Object.entries(CATEGORY_COLORS).map(([cat, color]) => (
-          <div key={cat} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <div
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                backgroundColor: color,
-                opacity: 0.7,
-              }}
-            />
-            <span
-              style={{
-                fontSize: 9,
-                color: "rgba(255, 255, 255, 0.4)",
-                letterSpacing: "0.02em",
-              }}
-            >
-              {cat.replace("_", " ")}
-            </span>
-          </div>
-        ))}
-      </div>
-
       {/* Capacity indicator — top-right */}
       <div
         style={{

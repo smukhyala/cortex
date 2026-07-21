@@ -414,7 +414,7 @@ export function createCortexMcpServer(options: { defaultOrigin: DefaultOrigin })
 
   server.tool(
     "cortex_get_workspace",
-    "Inspect the J-Space workspace — see which memories currently occupy slots, their loading %, pinned status, and workspace capacity. Runs decay first to ensure fresh state.",
+    "Inspect the workspace (inspired by the Global Workspace paper) — see which memories currently occupy slots, their loading %, pinned status, and workspace capacity. Runs decay first to ensure fresh state.",
     {},
     async () => {
       try {

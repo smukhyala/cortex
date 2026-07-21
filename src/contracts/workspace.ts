@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { MemoryCategorySchema } from "@/contracts/memory";
 
-// ─── J-Space Enums ───────────────────────────────────────────────────────────
+// ─── Workspace Enums (J-Space inspired by Anthropic's Global Workspace paper) ─
 
 export const MemoryTierSchema = z.enum(["background", "workspace"]);
 export type MemoryTier = z.infer<typeof MemoryTierSchema>;
@@ -9,7 +9,7 @@ export type MemoryTier = z.infer<typeof MemoryTierSchema>;
 export const SourceSignalSchema = z.enum(["activity", "explicit", "query", "sync", "ignition", "manual"]);
 export type SourceSignal = z.infer<typeof SourceSignalSchema>;
 
-// ─── J-Lens Configuration ────────────────────────────────────────────────────
+// ─── Scoring Configuration (named after the paper's Jacobian Lens readout) ───
 
 export const JLensConfigSchema = z.object({
   capacity: z.number().int().min(10).max(30).default(20),

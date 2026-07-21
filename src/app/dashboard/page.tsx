@@ -209,13 +209,43 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* ── Stats + Connections ── */}
+      {/* ── Overview ── */}
       <section>
         <p className="maze-eyebrow mb-6" data-animate>Overview</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+        {/* Stats row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          {/* Stat: Memories */}
+          <Link href="/memories" className="maze-card p-6 group" data-animate="1">
+            <div className="flex items-center justify-between mb-4">
+              <div className="h-10 w-10 rounded-xl bg-lime/10 flex items-center justify-center">
+                <Brain className="h-[18px] w-[18px] text-lime" />
+              </div>
+              <ArrowUpRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
+            </div>
+            <p className="text-4xl font-extralight tracking-tight">{stats?.memories ?? "—"}</p>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">Active Memories</p>
+          </Link>
+
+          {/* Stat: Pending */}
+          <Link href={stats?.pending ? "/review" : "#"} className="maze-card p-6 group" data-animate="2">
+            <div className="flex items-center justify-between mb-4">
+              <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center">
+                <Inbox className="h-[18px] w-[18px] text-muted-foreground" />
+              </div>
+              {(stats?.pending ?? 0) > 0 && (
+                <span className="h-5 min-w-5 px-1.5 flex items-center justify-center rounded-full bg-lime text-[10px] font-bold text-lime-foreground">
+                  {stats!.pending}
+                </span>
+              )}
+            </div>
+            <p className="text-4xl font-extralight tracking-tight">{stats?.pending ?? "—"}</p>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">Pending Review</p>
+          </Link>
+
           {/* Connections */}
           {connections && Object.entries(connections).map(([key, conn], i) => (
-            <div key={key} className={`maze-card p-6 relative overflow-hidden${i === 0 ? " lg:col-span-2" : ""}`} data-animate={i + 1}>
+            <div key={key} className="maze-card p-6 relative overflow-hidden" data-animate={i + 3}>
               <div className="flex items-center justify-between mb-4">
                 <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${conn.connected ? "bg-lime/10" : "bg-muted"}`}>
                   {key === "anthropic" ? (
@@ -237,34 +267,6 @@ export default function DashboardPage() {
               )}
             </div>
           ))}
-
-          {/* Stat: Memories */}
-          <Link href="/memories" className="maze-card p-6 group" data-animate="3">
-            <div className="flex items-center justify-between mb-4">
-              <div className="h-10 w-10 rounded-xl bg-lime/10 flex items-center justify-center">
-                <Brain className="h-[18px] w-[18px] text-lime" />
-              </div>
-              <ArrowUpRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
-            </div>
-            <p className="text-4xl font-extralight tracking-tight">{stats?.memories ?? "—"}</p>
-            <p className="text-xs text-muted-foreground mt-1 font-medium">Active Memories</p>
-          </Link>
-
-          {/* Stat: Pending */}
-          <Link href={stats?.pending ? "/review" : "#"} className="maze-card p-6 group" data-animate="4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center">
-                <Inbox className="h-[18px] w-[18px] text-muted-foreground" />
-              </div>
-              {(stats?.pending ?? 0) > 0 && (
-                <span className="h-5 min-w-5 px-1.5 flex items-center justify-center rounded-full bg-lime text-[10px] font-bold text-lime-foreground">
-                  {stats!.pending}
-                </span>
-              )}
-            </div>
-            <p className="text-4xl font-extralight tracking-tight">{stats?.pending ?? "—"}</p>
-            <p className="text-xs text-muted-foreground mt-1 font-medium">Pending Review</p>
-          </Link>
         </div>
       </section>
 

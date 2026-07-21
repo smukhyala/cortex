@@ -28,7 +28,7 @@ const STAGES: Stage[] = [
   {
     id: "scoring",
     label: "Scoring",
-    description: "J-Lens scores every memory against signals: 40% keyword match, 25% category, 20% recency, 15% co-occurrence",
+    description: "Inspired by the paper\u2019s Jacobian lens, Cortex scores each memory by relevance, strength, and coherence against recent signals",
     icon: BarChart3,
   },
   {
